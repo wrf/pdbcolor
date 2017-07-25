@@ -1,14 +1,22 @@
 # pdbcolor
-Python code to color a PDB structure based on percent identity from a multiple sequence alignment
+Python code for PyMOL to color a PDB structure based on percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are actually determined in the `pdb_site_identity.py` script, where the scores are calculated and printed in the ATOM records in the PDB file.
 
 ## Instructions ##
-1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](https://bitbucket.org/wrf/squid-transcriptomes/src) is the target, and residues will be colored based on the percentage identity of this sequence.
+1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](https://bitbucket.org/wrf/squid-transcriptomes/src) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence.
 
 `mafft-linsi symplectin_w_outgroups.fasta > symplectin_w_outgroups.aln`
 
-2) Using the alignment and the PDB file, assign the temperatureFactors to conservation scores using `pdb_site_identity.py`:
+2) Using the alignment and the PDB file (here generated using the [SWISS-MODEL](https://www.swissmodel.expasy.org/) server), reassign the temperatureFactors based on conservation scores using `pdb_site_identity.py`. The target sequence is indicated using the `-s` option, and must exactly match the name given in the alignment. The script assumes the residues in the PDB file are numbered based on this sequence, meaning even if the PDB file starts with residue 10 (say the first 9 were disordered or cleaved), the sequence still must start with residue 1.
 
 `pdb_site_identity.py -p symplectin_model.pdb -s Symplectin -a symplectin_w_outgroups.aln > symplectin_model_w_scores.pdb`
+
+In a normal PDB file, the temperatureFactor or beta-factor is the second to last term, here in the first atom it is 0.82.
+
+`ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
+
+The script identifies the residue number, and changes the temperatureFactor for each atom of that residue, here to 5.00, indicating reasonably high identity (>80%) at this position. This alanine will be colored green.
+
+`ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  5.00           N  `
 
 3) Open the PDB file in PyMOL:
 
@@ -17,8 +25,6 @@ Python code to color a PDB structure based on percent identity from a multiple s
 4) In the PyMOL console, run the command:
 
 `run color_by_identity.py`
-
-By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are actually determined in the `pdb_site_identity.py` script, where the scores are then printed in the ATOM records in the PDB file.
 
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/symplectin_domains_by_conservation.png)
 
