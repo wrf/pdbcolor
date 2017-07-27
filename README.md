@@ -1,5 +1,9 @@
 # pdbcolor
-Python code for PyMOL to color a PDB structure based on percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are defined in the `pdb_site_identity.py` script, where the scores are calculated and printed for each of the ATOM records in the PDB file.
+Python code for PyMOL to color a PDB structure based on percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 
+
+![percent_identity_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/percent_identity_color_scheme.png)
+
+Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are defined in the `pdb_site_identity.py` script, where the scores are calculated and printed for each of the ATOM records in the PDB file.
 
 In a normal PDB file, the temperatureFactor or beta-factor is the second to last term, here in the first atom it is 0.82.
 
@@ -30,7 +34,7 @@ These values range from 1.00 to 9.00, though can be changed to represent any arb
 
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/symplectin_domains_by_conservation.png)
 
-In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). Comparatively, the other domain is not well conserved outside of disulfide-forming cysteines.
+In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
 
 ## References ##
 The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/)
