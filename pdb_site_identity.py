@@ -115,7 +115,7 @@ def rewrite_pdb(pdbfile, conservedict, wayout):
 		record = line[0:6].strip()
 		if record=="ATOM": # skip all other records
 			residue = int( line[22:26] )
-			conservescore = conservedict.get(residue,"0.00")
+			conservescore = conservedict.get(residue,0.00)
 			newline = "{}{:6.2f}{}".format( line[:60], conservescore, line[66:].rstrip() )
 			print >> wayout, newline
 		else:
