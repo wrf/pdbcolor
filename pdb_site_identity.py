@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2017-07-25
+'''pdb_site_identity.py  last modified 2017-08-08
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -19,6 +19,9 @@ or an integer for the ranked identity score, where bins are:
 0, 50, 60, 70, 80, 90, 95, 98, 100%
 corresponding to scores of 1 to 9
 
+residue number must match the alignment, not the position in the model
+meaning even if the PDB file starts with residue 20, if the first 19 were
+disordered or cleaved, the sequence still must start with residue 1
 '''
 
 import sys
@@ -34,14 +37,15 @@ def get_alignment_conservation(alignment, alignformat, target_seqid, gapcutoff, 
 	al_length = alignment.get_alignment_length()
 	num_taxa = len(alignment)
 
-	print >> sys.stderr, "# Alignment contains {} taxa for {} sites".format( num_taxa, al_length )
+	print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
 
 	targetseq = None
 	for seqrec in alignment:
 		if seqrec.id==target_seqid:
 			targetseq = seqrec.seq
 	if targetseq is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}".format( target_seqid )
+		print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+		return None
 
 	index_to_identity = {}
 	targetcount = 0 # keep track of position in target sequence for all non-gap letters
@@ -88,7 +92,9 @@ def get_alignment_conservation(alignment, alignformat, target_seqid, gapcutoff, 
 	return index_to_identity
 
 def rewrite_pdb(pdbfile, conservedict, wayout):
-	print >> sys.stderr, "# Writing new PDB from {}".format(pdbfile)
+	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
+	atomcounter = 0
+	residuecounter = {}
 	for line in open(pdbfile,'r'):
 		# records include:
 		# HEADER TITLE COMPND SOURCE AUTHOR REVDAT JRNL REMARK
@@ -115,16 +121,20 @@ def rewrite_pdb(pdbfile, conservedict, wayout):
 		record = line[0:6].strip()
 		if record=="ATOM": # skip all other records
 			residue = int( line[22:26] )
+			atomcounter += 1
 			conservescore = conservedict.get(residue,0.00)
+			if conservescore:
+				residuecounter[residue] = True
 			newline = "{}{:6.2f}{}".format( line[:60], conservescore, line[66:].rstrip() )
 			print >> wayout, newline
 		else:
 			print >> wayout, line.strip()
+	print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
 
 def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
 	parser.add_argument("-a","--alignment", help="multiple sequence alignment", required=True)
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-g","--gap-cutoff", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [0.5]")
@@ -134,7 +144,10 @@ def main(argv, wayout):
 	args = parser.parse_args(argv)
 
 	conservedict = get_alignment_conservation( args.alignment, args.format, args.sequence, args.gap_cutoff, args.identity)
-	rewrite_pdb(args.pdb, conservedict, wayout)
+	if conservedict: # indicating that the sequence was found and something was calculated
+		rewrite_pdb(args.pdb, conservedict, wayout)
+	else:
+		sys.exit("# CANNOT CALCULATE CONSERVATION, EXITING")
 
 if __name__ == "__main__":
 	main(sys.argv[1:], sys.stdout)
