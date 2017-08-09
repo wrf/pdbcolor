@@ -2,7 +2,7 @@
 #
 # color_by_identity.py v1 2017-07-25
 
-'''color_by_identity.py v1 2017-07-26
+'''color_by_identity.py v1 2017-08-08
 adapted from consurf_new.py
 
 in PyMOL, use by:
@@ -18,7 +18,7 @@ def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0):
 	# gray, light blue, blue, teal, green, yellow, orange, red, magenta
 	# to correspond to identity of <= :
 	# 0   , 50        , 60  , 70  , 80   , 90    , 95    , 98 , 100
-	colors = [ [0.5, 0.5, 0.5] , [0.33,0.33,0.72] , [0,0.30,0.70], 
+	colors = [ [0.5, 0.5, 0.5] , [0.38,0.38,0.72] , [0,0.30,0.70], 
 			  [0.06,0.68,0.40] , [0.21,0.66,0]    , [0.85,0.66,0], 
 			  [0.94,0.32,0]    , [0.88,0,0]       , [1,0,0.55] ]
 
