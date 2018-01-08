@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2017-08-08
+'''pdb_site_identity.py  last modified 2018-01-08
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -30,7 +30,7 @@ import argparse
 from collections import Counter
 from Bio import AlignIO
 
-def get_alignment_conservation(alignment, alignformat, target_seqid, gapcutoff, store_identity=False):
+def get_alignment_identity(alignment, alignformat, target_seqid, gapcutoff, store_identity=False):
 	print >> sys.stderr, "# Reading alignment from {}".format( alignment )
 	alignment = AlignIO.read( alignment, alignformat )
 
@@ -55,7 +55,7 @@ def get_alignment_conservation(alignment, alignformat, target_seqid, gapcutoff, 
 		if targetletter != "-": # meaning anything except gaps
 			targetcount += 1
 			alignment_column = alignment[:,i] # all letters per site
-			nogap_alignment_column = alignment_column.replace("-","") # excluding gaps
+			nogap_alignment_column = alignment_column.replace("-","").replace("X","") # excluding gaps
 			aa_counter = Counter( nogap_alignment_column )
 
 			# calculate float of no-gaps/all characters
@@ -91,10 +91,12 @@ def get_alignment_conservation(alignment, alignformat, target_seqid, gapcutoff, 
 	print >> sys.stderr, "# Calculated conservation for {} sites".format( len(index_to_identity) )
 	return index_to_identity
 
-def rewrite_pdb(pdbfile, conservedict, wayout):
+def rewrite_pdb(pdbfile, conservedict, seqid, wayout):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
 	residuecounter = {}
+	keepchains = []
+	defaultchain = True # flag for whether DBREF occurs at all
 	for line in open(pdbfile,'r'):
 		# records include:
 		# HEADER TITLE COMPND SOURCE AUTHOR REVDAT JRNL REMARK
@@ -119,17 +121,33 @@ def rewrite_pdb(pdbfile, conservedict, wayout):
 		#79 - 80        LString(2)    charge       Charge  on the atom.
 
 		record = line[0:6].strip()
+		# get relevant chains that match the sequence, in case of hetero multimers
+		if record=="DBREF":
+			defaultchain = False
+			proteinid = line[42:56].strip()
+			if seqid.find(proteinid)>-1:
+				chaintarget = line[12]
+				print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+				keepchains.append( chaintarget )
+		# DBREF lines should come before ATOM lines, so for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
+			chain = line[21]
 			residue = int( line[22:26] )
-			atomcounter += 1
-			conservescore = conservedict.get(residue,0.00)
-			if conservescore:
-				residuecounter[residue] = True
+			if defaultchain or chain in keepchains: # default chain means take all, or use chain A
+				atomcounter += 1
+				conservescore = conservedict.get(residue,0.00)
+				if conservescore:
+					residuecounter[residue] = True
+			else: # meaning in another chain, so color as insufficient
+				conservescore = 0
 			newline = "{}{:6.2f}{}".format( line[:60], conservescore, line[66:].rstrip() )
 			print >> wayout, newline
-		else:
+		else: # this will also print DBREF lines
 			print >> wayout, line.strip()
-	print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
+	if atomcounter:
+		print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
+	else:
+		print >> sys.stderr, "# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}".format( seqid, proteinid )
 
 def main(argv, wayout):
 	if not len(argv):
@@ -143,9 +161,9 @@ def main(argv, wayout):
 	parser.add_argument("-s","--sequence", help="sequence ID for PDB", required=True)
 	args = parser.parse_args(argv)
 
-	conservedict = get_alignment_conservation( args.alignment, args.format, args.sequence, args.gap_cutoff, args.identity)
+	conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff, args.identity)
 	if conservedict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, conservedict, wayout)
+		rewrite_pdb(args.pdb, conservedict, args.sequence, wayout)
 	else:
 		sys.exit("# CANNOT CALCULATE CONSERVATION, EXITING")
 
