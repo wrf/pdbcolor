@@ -2,7 +2,7 @@
 #
 # color_by_likelihood.py v1 2018-02-01
 
-'''color_by_likelihood.py v1 2018-02-01
+'''color_by_likelihood.py v1 2018-02-02
 
 in PyMOL, use by:
 
@@ -32,6 +32,11 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
              [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
              [0.21,0.66,0.00] ]
 
+	groupnames = [ "gaps", 
+                  "t2max", "-5", "-4", "-3", "-2", "-1", "-0.5", "-0.1",
+                  "+0.1", "+0.5", "+1", "+2", "+3", "+4", "+5", "t1max",
+                   "const" ]
+
 	bin_size = ((MAXIMUM - MINIMUM) + 1) / num_colors
 
 	# iterate through temperatureFactor value in PyMOL
@@ -45,7 +50,7 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
 		print lower, " - ", upper, " = ", colors[i]
 
 		# Define a unique name for the atoms which fall into this group
-		groupname = selection + "_group_" + str(i+1)
+		groupname = groupnames[i] + "_group_s" + str(i+1)
 
 		# Compose a selection command which will select all atoms with some beta value
 		sel_string = selection + " & ! b < " + str(lower)
@@ -72,7 +77,7 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
 	cmd.set_color("insufficient_color", insuf_color)
 
 	# color atoms with B-factor of 0 using the new color
-	cmd.select("insufficient", selection + " & b > 11")
+	cmd.select("insufficient", selection + " & b > 16")
 	cmd.color("insufficient_color", "insufficient")
 
 # This is required to make command available in PyMOL 

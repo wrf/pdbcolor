@@ -2,7 +2,7 @@
 #
 # color_by_identity.py v1 2017-07-25
 
-'''color_by_identity.py v1 2017-08-08
+'''color_by_identity.py v1.1 2018-02-02
 adapted from consurf_new.py
 
 in PyMOL, use by:
@@ -21,6 +21,7 @@ def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0):
 	colors = [ [0.5, 0.5, 0.5] , [0.38,0.38,0.72] , [0,0.30,0.70], 
 			  [0.06,0.68,0.40] , [0.21,0.66,0]    , [0.85,0.66,0], 
 			  [0.94,0.32,0]    , [0.88,0,0]       , [1,0,0.55] ]
+	groupnames = [ "0", "50pct", "60pct", "70pct", "80pct", "90pct", "95pct", "98pct", "100pct" ]
 
 	bin_size = ((MAXIMUM - MINIMUM) + 1) / num_colors
 
@@ -35,7 +36,7 @@ def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0):
 		print lower, " - ", upper, " = ", colors[i]
 
 		# Define a unique name for the atoms which fall into this group
-		groupname = selection + "_group_" + str(i+1)
+		groupname = groupnames[i] + "_group_s" + str(i+1)
 
 		# Compose a selection command which will select all atoms with some beta value
 		sel_string = selection + " & ! b < " + str(lower)

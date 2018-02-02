@@ -2,7 +2,7 @@
 #
 # color_by_heteropecilly.py v1 2017-10-06
 
-'''color_by_heteropecilly.py v1 2017-10-06
+'''color_by_heteropecilly.py v1.1 2018-02-02
 
 in PyMOL, use by:
 
@@ -27,6 +27,11 @@ def color_heteropecilly(selection="all", num_colors=13, MINIMUM=-1.0, MAXIMUM=11
               [0.87,0.50,0.50] , [0.87,0.36,0.36] , [0.87,0.22,0.22] , 
               [0.87,0.00,0.00] ,
               [0.44,0.78,0.45] , [0.21,0.66,0.00] ]
+	groupnames = ["gaps", 
+                "hp_group_0-10", "hp_group_10-20", "hp_group_20-30",
+                "hp_group_30-40", "hp_group_40-50", "hp_group_50-60",
+                "hp_group_60-70", "hp_group_70-80", "hp_group_80-90",
+                "hp_group_90-99", "semi-const", "constant" ]
 
 	bin_size = ((MAXIMUM - MINIMUM) + 1) / num_colors
 
@@ -41,7 +46,7 @@ def color_heteropecilly(selection="all", num_colors=13, MINIMUM=-1.0, MAXIMUM=11
 		print lower, " - ", upper, " = ", colors[i]
 
 		# Define a unique name for the atoms which fall into this group
-		groupname = selection + "_group_" + str(i+1)
+		groupname = groupnames[i] + "_s" + str(i+1)
 
 		# Compose a selection command which will select all atoms with some beta value
 		sel_string = selection + " & ! b < " + str(lower)
