@@ -1,7 +1,7 @@
 # pdbcolor
-Python code for PyMOL to color a PDB structure based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed.
+Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed.
 
-For all cases, the scripts work by changing a value for each ATOM record in a PDB file. In a normal PDB file, the temperatureFactor or beta-factor is the second to last term, here in the first atom it is 0.82.
+For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the temperatureFactor or beta-factor is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
@@ -9,7 +9,7 @@ Each script identifies the residue number (here alanine is the 11th residue of t
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  5.00           N  `
 
-At the moment, scripts can only recode a single protein per PDB file, meaning hetero-multimers are not co-colored. This may be developed in the future.
+At the moment, scripts can only recode a single protein per PDB file, meaning hetero-multimers are not co-colored. If a PDB file contains multiple other proteins, metals, ligands, DNA, etc., all of these will be colored the "null" color. This may be developed in the future. Running the `color_by_` scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 
@@ -42,12 +42,26 @@ These values range from 1.00 to 9.00, for a gradient of percentage points. The c
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
 
 ## RAxML site-wise likelihood ##
-For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between two topologies can be computed for each site (the "dlnL"). While most sites are marginally different (values between -0.5 and 0.5, colored rust and mud), a small number of sites have a strong effect on the likelihood of the final tree (colored in bright pink and teal).
+For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between two topologies can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a hex string where a dlnL of 0 becomes exactly 8.0 to include the range of values but also permit each value to be coded as a single character (for display as a fasta sequence). 
+
+While most sites are marginally different - values between -0.5 and 0.5 - colored mud (7) and rust (8), a small number of sites have a strong effect on the likelihood of the final tree, colored in blue/teal (0-6) for sites that favor the second tree and bright pink (9-f) for sites favoring the first tree. The scripts to make use of this assume that proteins and site-wise likelihood values derive from a protein supermatrix. Because proteins in supermatrices are often trimmed compared to the complete sequence, any missing values are colored gray as gaps. Sites that were constant in the alignment need to be recoded as such, and are then colored green in the resulting protein.
 
 ![likelihood_color_scheme_v1.png](https://github.com/wrf/pdbcolor/blob/master/likelihood_color_scheme_v1.png)
 
+Detailed instructions are currently in the [heteropecilly github repo](https://github.com/wrf/heteropecilly)
+
+The workflow is meant to begin from a supermatrix, meaning a lot of other data need to be generated and organized. Briefly, the steps required are:
+
+1) Starting from a protein supermatrix ( see [supermatrix repo for scripts to manipulate matrices](https://github.com/wrf/supermatrix) ), run `RAxML` to get sitewise likelihoods of the entire dataset, then convert that output to tabular using the `sitewise_ll_to_columns.py` script.
+2) Because constant sites may still receive lnL values from RAxML (which is biologically meaningless) these should be recoded to a value indicating they are constant. Using the matrix and the tabular likelihoods, recode constant sites and generate a new tabular output file.
+3) Split the supermatrix into taxa [with this script](https://github.com/wrf/supermatrix/blob/master/split_supermatrix_to_taxa.py), where a fasta file is generated for each taxon and each protein gets a unique name based on the partition.
+4) Using `blastp`, align the proteins against a protein set from a reference taxon that has crystal structures of the proteins of interest (probably human) and where the proteins in the reference set are complete, meaning untrimmed.
+5) With the blast results, generate an alignment of each protein with the reference and a line of the recoded sitewise likelihoods (with `blast_to_align_pairs.py`). Files will be automatically named and contain exactly three fasta entries, the trimmed protein from the supermatrix (which will have gaps), the full protein (the protein of interest that presumably has a crystal structure), and the sitewise likelihoods that should match the trimmed protein. This alignment file is the input for `pdb_log_likelihood.py`.
+6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
+7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
+
 ## heteropecilly ##
-See the [heteropecilly github repo](https://github.com/wrf/heteropecilly)
+The steps are almost identical to the sitewise likelihood above, only the site-wise heteropecilly calculations are used instead. Steps 3 and 4 are the same. See the [heteropecilly github repo](https://github.com/wrf/heteropecilly) for details. 
 
 ![heteropecilly_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/heteropecilly_color_scheme.png)
 
