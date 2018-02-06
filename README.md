@@ -60,6 +60,10 @@ The workflow is meant to begin from a supermatrix, meaning a lot of other data n
 6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
 7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
 
+![3d4j_w_lnl.png](https://github.com/wrf/pdbcolor/blob/master/3d4j_w_lnl.png)
+
+For example, above is the structure `3d4j.pdb` of human diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://www.uniprot.org/uniprot/P53602)). The protein is a homodimer (see [Voynova et al 2008 Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/)), and two pori-sis-favoring residues (teal) can be seen involved in the dimerization interface of the two C-terminal domains. Rather unusually, these two residues (S275 and W282) are F and R, respectively, in most opisthokonts and many sponges, suggesting that sponges retained the ancestral state for these residues. Whether and how F and R would interact to support dimerization is unclear. The constant region (green, with sulfate bound) is the active site of the enzyme.
+
 ## heteropecilly ##
 The steps are almost identical to the sitewise likelihood above, only the site-wise heteropecilly calculations are used instead. Steps 3 and 4 are the same. See the [heteropecilly github repo](https://github.com/wrf/heteropecilly) for details. 
 

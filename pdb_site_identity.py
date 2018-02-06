@@ -91,7 +91,7 @@ def get_alignment_identity(alignment, alignformat, target_seqid, gapcutoff, stor
 	print >> sys.stderr, "# Calculated conservation for {} sites".format( len(index_to_identity) )
 	return index_to_identity
 
-def rewrite_pdb(pdbfile, conservedict, seqid, wayout):
+def rewrite_pdb(pdbfile, seqid, scoredict, wayout, forcerecode):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
 	residuecounter = {}
@@ -133,14 +133,14 @@ def rewrite_pdb(pdbfile, conservedict, seqid, wayout):
 		if record=="ATOM": # skip all other records
 			chain = line[21]
 			residue = int( line[22:26] )
-			if defaultchain or chain in keepchains: # default chain means take all, or use chain A
+			if defaultchain or forcerecode or chain in keepchains: # default chain means take all, or use chain A
 				atomcounter += 1
-				conservescore = conservedict.get(residue,0.00)
-				if conservescore:
+				residuescore = scoredict.get(residue,0.00)
+				if residuescore:
 					residuecounter[residue] = True
 			else: # meaning in another chain, so color as insufficient
-				conservescore = 0
-			newline = "{}{:6.2f}{}".format( line[:60], conservescore, line[66:].rstrip() )
+				residuescore = 0
+			newline = "{}{:6.2f}{}".format( line[:60], residuescore, line[66:].rstrip() )
 			print >> wayout, newline
 		else: # this will also print DBREF lines
 			print >> wayout, line.strip()
@@ -159,11 +159,12 @@ def main(argv, wayout):
 	parser.add_argument("-i","--identity", action="store_true", help="report percent identity instead of score")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", help="sequence ID for PDB", required=True)
+	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
 	args = parser.parse_args(argv)
 
 	conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff, args.identity)
 	if conservedict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, conservedict, args.sequence, wayout)
+		rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode)
 	else:
 		sys.exit("# CANNOT CALCULATE CONSERVATION, EXITING")
 

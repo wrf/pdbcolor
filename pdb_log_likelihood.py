@@ -78,7 +78,7 @@ def get_alignment_likelihood(alignment, alignformat, target_seqid):
 	print >> sys.stderr, "# Found likelihood for {} sites".format( nongapcount )
 	return index_to_lnl
 
-def rewrite_pdb(pdbfile, seqid, scoredict, wayout):
+def rewrite_pdb(pdbfile, seqid, scoredict, wayout, forcerecode):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
 	residuecounter = {}
@@ -119,7 +119,7 @@ def rewrite_pdb(pdbfile, seqid, scoredict, wayout):
 		if record=="ATOM": # skip all other records
 			chain = line[21]
 			residue = int( line[22:26] )
-			if defaultchain or chain in keepchains:
+			if defaultchain or forcerecode or chain in keepchains:
 				atomcounter += 1
 				score = scoredict.get(residue,0.00)
 				if score:
@@ -140,11 +140,12 @@ def main(argv, wayout):
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", help="sequence ID for PDB", required=True)
+	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
 	args = parser.parse_args(argv)
 
 	lnldict = get_alignment_likelihood( args.alignment, args.format, args.sequence)
 	if lnldict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, args.sequence, lnldict, wayout)
+		rewrite_pdb(args.pdb, args.sequence, lnldict, wayout, args.force_recode)
 	else:
 		sys.exit("# CANNOT CALCULATE LIKELIHOODS, EXITING")
 
