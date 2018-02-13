@@ -2,9 +2,15 @@
 #
 # pdb_log_likelihood.py v1 2018-02-01
 
-'''pdb_log_likelihood.py  last modified 2018-02-01
+'''pdb_log_likelihood.py  last modified 2018-02-13
 
 pdb_log_likelihood.py -a PRP4B_HUMAN.aln -p 4ian.pdb -s PRP4B_HUMAN > 4ian_w_lnl.pdb
+
+    for PDB files that contain multiple proteins (with fewer than 100k atoms)
+    multiple alignments and seq IDs can be given by listing after -a and -s
+    the order of the files must match the sequence IDs
+
+pdb_log_likelihood.py -p 2o8b.pdb -a 10543-11140-MSH2_HUMAN.aln 51199-52049-MSH6_HUMAN.aln -s MSH2_HUMAN MSH6_HUMAN > 2o8b_w_both_lnl.pdb
 
 within a PDB file, fields for atoms are:
 Record name      Residue         Position as X Y Z
@@ -30,59 +36,85 @@ import argparse
 from collections import Counter
 from Bio import AlignIO
 
-def get_alignment_likelihood(alignment, alignformat, target_seqid):
-	print >> sys.stderr, "# Reading alignment from {}".format( alignment )
-	alignment = AlignIO.read( alignment, alignformat )
+def get_alignment_values(alignmentlist, alignformat, targetidlist):
+	scoreindex_dict = {} # dict of dicts, where key is seqID, value is dict where key is position
+	for alignment,target_seqid in zip(alignmentlist,targetidlist):
+		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+		alignment = AlignIO.read( alignment, alignformat )
 
-	al_length = alignment.get_alignment_length()
-	num_taxa = len(alignment)
+		al_length = alignment.get_alignment_length()
+		num_taxa = len(alignment)
 
-	print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+		print >> sys.stderr, "# Alignment contains {} sequences for {} sites, including gaps".format( num_taxa, al_length )
 
-	targetseq = None
-	lnlscores = None
-	for seqrec in alignment:
-		try:
-			shortid = seqrec.id.split("|")[2]
-		except IndexError:
-			shortid = None
-		if seqrec.id==target_seqid or shortid==target_seqid:
-			targetseq = seqrec.seq
-		elif seqrec.id=="Likelihood_score":
-			lnlscores = seqrec.seq
-	if targetseq is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
-		return None
-	if lnlscores is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND LIKELIHOOD SCORES {}, CHECK ALIGNMENT".format( target_seqid )
-		return None
+		targetseq = None
+		# scores can be likelihood or heteropecilly
+		sitescores = None
+		scoretype = None
+		for seqrec in alignment:
+			try: # this is for Uniprot IDs
+				shortid = seqrec.id.split("|")[2]
+			except IndexError:
+				shortid = None
+			if seqrec.id==target_seqid or shortid==target_seqid:
+				targetseq = seqrec.seq
+			elif seqrec.id=="Likelihood_score" or seqrec.id=="Heteropecilly_score":
+				sitescores = seqrec.seq
+				scoretype = seqrec.id
+		if targetseq is None:
+			print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+			return None
+		if sitescores is None:
+			print >> sys.stderr, "# ERROR: CANNOT FIND SITEWISE SCORES {}, CHECK ALIGNMENT".format( target_seqid )
+			return None
 
-	index_to_lnl = {}
-	nongapcount = 0
-	targetcount = 0 # keep track of position in target sequence for all non-gap letters
-	for i in range(al_length):
-		targetletter = targetseq[i]
-		lnlvalue = lnlscores[i]
-		if targetletter != "-": # meaning anything except gaps in target, though there should not be any
-			targetcount += 1
+		index_to_score = {}
+		nongapcount = 0
+		targetcount = 0 # keep track of position in target sequence for all non-gap letters
+		if scoretype=="Likelihood_score":
+			for i in range(al_length):
+				targetletter = targetseq[i]
+				lnlvalue = sitescores[i]
+				if targetletter != "-": # meaning anything except gaps in target, though there should not be any as it is the reference sequence
+					targetcount += 1
+					if lnlvalue == "-":
+						rankedscore = -1
+					elif lnlvalue == "x" or lnlvalue == "X":
+						nongapcount += 1
+						rankedscore = 16
+					else:
+						nongapcount += 1
+						rankedscore = int(lnlvalue,16)
+					index_to_score[targetcount] = rankedscore
+			print >> sys.stderr, "# Found likelihood for {} sites for {}".format( nongapcount, target_seqid )
+			scoreindex_dict[target_seqid] = index_to_score
+		elif scoretype=="Heteropecilly_score":
+			for i in range(al_length):
+				targetletter = targetseq[i]
+				hpvalue = sitescores[i]
+				if targetletter != "-":
+					targetcount += 1
+					if hpvalue == "-":
+						rankedscore = -1
+					elif hpvalue == "c":
+						nongapcount += 1
+						rankedscore = 10
+					elif hpvalue == "C":
+						nongapcount += 1
+						rankedscore = 11
+					else:
+						nongapcount += 1
+						rankedscore = int(hpvalue)
+					index_to_score[targetcount] = rankedscore
+			print >> sys.stderr, "# Found heteropecilly for {} sites for {}".format( nongapcount, target_seqid )
+			scoreindex_dict[target_seqid] = index_to_score
+	return scoreindex_dict
 
-			if lnlvalue == "-":
-				rankedscore = -1
-			elif lnlvalue == "x" or lnlvalue == "X":
-				nongapcount += 1
-				rankedscore = 16
-			else:
-				nongapcount += 1
-				rankedscore = int(lnlvalue,16)
-			index_to_lnl[targetcount] = rankedscore
-	print >> sys.stderr, "# Found likelihood for {} sites".format( nongapcount )
-	return index_to_lnl
-
-def rewrite_pdb(pdbfile, seqid, scoredict, wayout, forcerecode):
+def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, heterocolors):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
 	residuecounter = {}
-	keepchains = []
+	keepchains = {} # dict where key is chain and value is seqid
 	defaultchain = True # flag for whether DBREF occurs at all
 	for line in open(pdbfile,'r'):
 		# records include:
@@ -111,17 +143,21 @@ def rewrite_pdb(pdbfile, seqid, scoredict, wayout, forcerecode):
 		if record=="DBREF":
 			defaultchain = False
 			proteinid = line[42:56].strip()
-			if seqid.find(proteinid)>-1:
-				chaintarget = line[12]
-				print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
-				keepchains.append( chaintarget )
+			for seqid in seqidlist:
+				if seqid.find(proteinid)>-1:
+					chaintarget = line[12]
+					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					keepchains[chaintarget] = proteinid
 		# for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
 			chain = line[21]
 			residue = int( line[22:26] )
 			if defaultchain or forcerecode or chain in keepchains:
 				atomcounter += 1
-				score = scoredict.get(residue,0.00)
+				if defaultchain or forcerecode: # assume only one seqid
+					score = scoredict[seqidlist[0]].get(residue,0.00)
+				else:
+					score = scoredict[keepchains[chain]].get(residue,0.00)
 				if score:
 					residuecounter[residue] = True
 			else: # meaning in another chain, so color as insufficient
@@ -136,16 +172,21 @@ def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
-	parser.add_argument("-a","--alignment", help="multiple sequence alignment", required=True)
+	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment", required=True)
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
-	parser.add_argument("-s","--sequence", help="sequence ID for PDB", required=True)
+	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
+	parser.add_argument("--color-gaps", action="store_true", help="use dark colors to uniquely color gaps of up to 6 chains")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
+	parser.add_argument("--heteroatoms", action="store_true", help="color heteroatoms")
 	args = parser.parse_args(argv)
 
-	lnldict = get_alignment_likelihood( args.alignment, args.format, args.sequence)
-	if lnldict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, args.sequence, lnldict, wayout, args.force_recode)
+	if len(args.alignment) != len(args.sequence):
+		print >> sys.stderr, "ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)), time.asctime()
+
+	scoredict = get_alignment_values( args.alignment, args.format, args.sequence)
+	if scoredict: # indicating that the sequence was found and something was calculated
+		rewrite_pdb(args.pdb, args.sequence, scoredict, wayout, args.force_recode, args.color_gaps, args.heteroatoms)
 	else:
 		sys.exit("# CANNOT CALCULATE LIKELIHOODS, EXITING")
 

@@ -9,16 +9,18 @@ Each script identifies the residue number (here alanine is the 11th residue of t
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  5.00           N  `
 
-**At the moment, scripts can only recode a single protein per PDB file, meaning hetero-multimers are not co-colored.** If a PDB file contains multiple other proteins, metals, ligands, DNA, etc., all of these will be colored the "null" color. This may be developed in the future. Running the `color_by_` scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
+Running the scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 
 
-![percent_identity_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/percent_identity_color_scheme.png)
+![percent_identity_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/percent_identity_color_scheme.png)
 
 Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are defined in the `pdb_site_identity.py` script, where the scores are calculated and printed for each of the ATOM records in the PDB file.
 
 These values range from 1.00 to 9.00, for a gradient of percentage points. The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
+
+**At the moment, this script can only recode a single protein per PDB file, meaning hetero-multimers are not co-colored.** If a PDB file contains multiple other proteins, metals, ligands, DNA, etc., all of these will be colored the "null" color.
 
 ### Instructions ###
 1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](https://bitbucket.org/wrf/squid-transcriptomes/src) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft`.
@@ -37,16 +39,16 @@ These values range from 1.00 to 9.00, for a gradient of percentage points. The c
 
 `run color_by_identity.py`
 
-![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/symplectin_domains_by_conservation.png)
+![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/examples/symplectin_domains_by_conservation.png)
 
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
 
 ## RAxML site-wise likelihood ##
 For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between two topologies can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a hex string where a dlnL of 0 becomes exactly 8.0 to include the range of values but also permit each value to be coded as a single character (for display as a fasta sequence). 
 
-While most sites are marginally different - values between -0.5 and 0.5 - colored mud (7) and rust (8), a small number of sites have a strong effect on the likelihood of the final tree, colored in blue/teal (0-6) for sites that favor the second tree and bright pink (9-f) for sites favoring the first tree. The scripts to make use of this assume that proteins and site-wise likelihood values derive from a protein supermatrix. Because proteins in supermatrices are often trimmed compared to the complete sequence, any missing values are colored gray as gaps. Sites that were constant in the alignment need to be recoded as such, and are then colored green in the resulting protein.
+While most sites are marginally different - values between -0.5 and 0.5 - colored mud (7) and rust (8), a small number of sites have a strong effect on the likelihood of the final tree, colored in blue/teal (0-6) for sites that favor the second tree and bright pink (9-f) for sites favoring the first tree. The scripts to make use of this assume that proteins and site-wise likelihood values derive from a protein supermatrix. Because proteins in supermatrices are often trimmed compared to the complete sequence, any missing values are colored gray as gaps. Sites that were constant in the alignment need to be recoded as such, and are then colored blue in the resulting protein.
 
-![likelihood_color_scheme_v1.png](https://github.com/wrf/pdbcolor/blob/master/likelihood_color_scheme_v1.png)
+![likelihood_color_scheme_v2.png](https://github.com/wrf/pdbcolor/blob/master/svg/likelihood_color_scheme_v2.png)
 
 Detailed instructions are currently in the [heteropecilly github repo](https://github.com/wrf/heteropecilly)
 
@@ -60,14 +62,20 @@ The workflow is meant to begin from a supermatrix, meaning a lot of other data n
 6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
 7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
 
-![3d4j_w_lnl.png](https://github.com/wrf/pdbcolor/blob/master/3d4j_w_lnl.png)
+For the example alignment and protein structure:
 
-For example, above is the structure [3d4j](https://www.rcsb.org/structure/3d4j) of human diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://www.uniprot.org/uniprot/P53602)). The protein is a homodimer (see [Voynova et al 2008 Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/)), and two pori-sis-favoring residues (teal) can be seen involved in the dimerization interface of the two C-terminal domains. Rather unusually, these two residues (S275 and W282) are F and R, respectively, in most opisthokonts and many sponges, suggesting that sponges retained the ancestral state for these residues, which is why pori-sis is the favored topology. Potentially, the R guanidinium can interact with the pi-electron cloud of F, and may still support dimerization. The constant region (green, with sulfate bound) is the active site of the enzyme.
+`pdb_log_likelihood.py -a 16098-16392-MVD1_HUMAN.aln -s MVD1_HUMAN -p 3d4j.pdb > 3d4j_w_lnl.pdb`
+
+![3d4j_w_lnl.png](https://github.com/wrf/pdbcolor/blob/master/examples/3d4j_w_lnl.png)
+
+For example, above is the structure [3d4j](https://www.rcsb.org/structure/3d4j) of human diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://www.uniprot.org/uniprot/P53602)). The protein is a homodimer (see [Voynova et al 2008 Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/)), and two pori-sis-favoring residues (teal) can be seen involved in the dimerization interface of the two C-terminal domains. Rather unusually, these two residues (S275 and W282) are F and R, respectively, in most opisthokonts and many sponges, suggesting that sponges retained the ancestral state for these residues, which is why pori-sis is the favored topology. Potentially, the R guanidinium can interact with the pi-electron cloud of F, and may still support dimerization. The constant region (blue, with sulfate bound) is the active site of the enzyme.
+
+For PDB files that contain multiple proteins, additional alignments can optionally be listed with `-a`. The corresponding protein ID must be given in the same order with `-s`.
 
 ## heteropecilly ##
 The steps are almost identical to the sitewise likelihood above, only the site-wise heteropecilly calculations are used instead. Steps 3 and 4 are the same. See the [heteropecilly github repo](https://github.com/wrf/heteropecilly) for details. 
 
-![heteropecilly_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/heteropecilly_color_scheme.png)
+![heteropecilly_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/heteropecilly_color_scheme.png)
 
 ## References ##
 The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/)
