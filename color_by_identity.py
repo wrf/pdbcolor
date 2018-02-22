@@ -2,7 +2,7 @@
 #
 # color_by_identity.py v1 2017-07-25
 
-'''color_by_identity.py v1.1 2018-02-02
+'''color_by_identity.py v1.1 2018-02-18
 adapted from consurf_new.py
 
 in PyMOL, use by:
@@ -10,7 +10,7 @@ in PyMOL, use by:
 run color_by_identity.py
 '''
 
-def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0):
+def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0, redscale=False):
 	'''function to color atoms/residues by the temperatureFactor field'''
 
 	# each color is RGB triplet, values ranging from 0 to 1, where black is 0 and white is 1
@@ -22,6 +22,11 @@ def color_identity(selection="all", num_colors=9, MINIMUM=1.0, MAXIMUM=9.0):
 			  [0.06,0.68,0.40] , [0.21,0.66,0]    , [0.85,0.66,0], 
 			  [0.94,0.32,0]    , [0.88,0,0]       , [1,0,0.55] ]
 	groupnames = [ "0", "50pct", "60pct", "70pct", "80pct", "90pct", "95pct", "98pct", "100pct" ]
+
+	if redscale: # use gray to red instead
+		colors = [ [0.63,0.63,0.63] , [0.73,0.55,0.55] , [0.75,0.47,0.47], 
+				  [0.77,0.38,0.38] , [0.79,0.29,0.29]    , [0.82,0.21,0.21], 
+				  [0.84,0.13,0.13]    , [0.88,0,0]       , [1,0,0.55] ]
 
 	bin_size = ((MAXIMUM - MINIMUM) + 1) / num_colors
 

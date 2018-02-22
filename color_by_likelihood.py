@@ -2,14 +2,14 @@
 #
 # color_by_likelihood.py v1 2018-02-01
 
-'''color_by_likelihood.py v1.1 2018-02-13
+'''color_by_likelihood.py v1.1 2018-02-22
 
 in PyMOL, use by:
 
 run color_by_likelihood.py
 '''
 
-def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0):
+def color_likelihood(selection="all", whitebg=False):
 	'''function to color atoms/residues by the temperatureFactor field'''
 
 	# each color is RGB triplet, values ranging from 0 to 1, where black is 0 and white is 1
@@ -28,6 +28,16 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
              [0.18,0.77,0.48] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
              [0.39,0.72,0.60] , [0.42,0.49,0.42] ,
              [0.49,0.36,0.40] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
+             [0.78,0.24,0.48] , [0.77,0.22,0.44] , [0.77,0.20,0.33] ,
+             [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
+             [0.12,0.44,0.88] ]
+
+	if whitebg: # replaces colors -1, 7, 8
+		colors = [ [0.95,1.00,0.50] ,
+             [0.11,0.57,0.06] , [0.12,0.63,0.21] , [0.19,0.74,0.34] ,
+             [0.18,0.77,0.48] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
+             [0.39,0.72,0.60] , [0.82,0.95,0.87] ,
+             [0.93,0.80,0.78] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
              [0.78,0.24,0.48] , [0.77,0.22,0.44] , [0.77,0.20,0.33] ,
              [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
              [0.12,0.23,0.66] ]
@@ -49,14 +59,14 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
                   "+0.1", "+0.5", "+1", "+2", "+3", "+4", "+5", "t1max",
                    "const" ]
 
-	bin_size = ((MAXIMUM - MINIMUM) + 1) / num_colors
+	bin_size = 1
 
 	# iterate through temperatureFactor value in PyMOL
 	# atoms with each value are selected and colored with the following steps
-	for i in range(num_colors):
+	for i in range(18):
 
-		lower = MINIMUM + i * bin_size
-		upper = lower + bin_size - 0.01
+		lower = -1 + i
+		upper = lower + 0.99
 
 		# Print out B-factor limits and the color for this group
 		print lower, " - ", upper, " = ", colors[i]
@@ -67,7 +77,7 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
 		# Compose a selection command which will select all atoms with some beta value
 		sel_string = selection + " & ! b < " + str(lower)
 
-		if(i < num_colors - 1):
+		if(i < 18 - 1):
 			sel_string += " & b < " + str(upper)
 		else:
 			sel_string += " & ! b > " + str(upper)
@@ -91,6 +101,8 @@ def color_likelihood(selection="all", num_colors=18, MINIMUM=-1.0, MAXIMUM=16.0)
 	# color atoms with B-factor of 99 using the new color
 	cmd.select("insufficient", selection + " & b > 16")
 	cmd.color("insufficient_color", "insufficient")
+
+	print "to use white background color scheme, type 'color_likelihood(whitebg=True)'"
 
 # This is required to make command available in PyMOL 
 cmd.extend("color_likelihood", color_likelihood)
