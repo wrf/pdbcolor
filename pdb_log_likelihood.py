@@ -2,7 +2,7 @@
 #
 # pdb_log_likelihood.py v1 2018-02-01
 
-'''pdb_log_likelihood.py  last modified 2018-02-13
+'''pdb_log_likelihood.py  last modified 2018-02-20
 
 pdb_log_likelihood.py -a PRP4B_HUMAN.aln -p 4ian.pdb -s PRP4B_HUMAN > 4ian_w_lnl.pdb
 
@@ -77,14 +77,14 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist):
 				lnlvalue = sitescores[i]
 				if targetletter != "-": # meaning anything except gaps in target, though there should not be any as it is the reference sequence
 					targetcount += 1
-					if lnlvalue == "-":
+					if lnlvalue == "-": # gaps
 						rankedscore = -1
-					elif lnlvalue == "x" or lnlvalue == "X":
+					elif lnlvalue == "x" or lnlvalue == "X": # constant sites
 						nongapcount += 1
 						rankedscore = 16
 					else:
 						nongapcount += 1
-						rankedscore = int(lnlvalue,16)
+						rankedscore = int(lnlvalue,16) # base 16 string to integer
 					index_to_score[targetcount] = rankedscore
 			print >> sys.stderr, "# Found likelihood for {} sites for {}".format( nongapcount, target_seqid )
 			scoreindex_dict[target_seqid] = index_to_score
@@ -94,12 +94,12 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist):
 				hpvalue = sitescores[i]
 				if targetletter != "-":
 					targetcount += 1
-					if hpvalue == "-":
+					if hpvalue == "-": # gap
 						rankedscore = -1
-					elif hpvalue == "c":
+					elif hpvalue == "c": # semi-constant site
 						nongapcount += 1
 						rankedscore = 10
-					elif hpvalue == "C":
+					elif hpvalue == "C": # constant site
 						nongapcount += 1
 						rankedscore = 11
 					else:
@@ -113,10 +113,12 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist):
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, heterocolors):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
-	residuecounter = {}
+	hetatmcounter = 0
+	residuecounter = {} # keys are strings of chain + residue
 	keepchains = {} # dict where key is chain and value is seqid
 	defaultchain = True # flag for whether DBREF occurs at all
 	for line in open(pdbfile,'r'):
+		# from http://www.wwpdb.org/documentation/file-format-content/format33/v3.3.html
 		# records include:
 		# HEADER TITLE COMPND SOURCE AUTHOR REVDAT JRNL REMARK
 		# DBREF SEQRES HET HETNAM FORMUL HELIX SHEET SSBOND LINK CISPEP SITE ATOM CONECT
@@ -140,7 +142,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 		#79 - 80        LString(2)    charge       Charge  on the atom.
 
 		record = line[0:6].strip()
-		if record=="DBREF":
+		if record=="DBREF": # find which chains match seq ID
 			defaultchain = False
 			proteinid = line[42:56].strip()
 			for seqid in seqidlist:
@@ -155,12 +157,52 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 			if defaultchain or forcerecode or chain in keepchains:
 				atomcounter += 1
 				if defaultchain or forcerecode: # assume only one seqid
-					score = scoredict[seqidlist[0]].get(residue,0.00)
+					score = scoredict[seqidlist[0]].get(residue,-1.00)
 				else:
-					score = scoredict[keepchains[chain]].get(residue,0.00)
+					score = scoredict[keepchains[chain]].get(residue,-1.00)
 				if score:
-					residuecounter[residue] = True
-			else: # meaning in another chain, so color as insufficient
+					chain_residue = "{}/{}".format(chain, residue)
+					residuecounter[chain_residue] = True
+			else: # meaning in another chain, so color as null
+				score = 99
+			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:].rstrip() )
+			print >> wayout, newline
+
+		#COLUMNS       DATA  TYPE     FIELD         DEFINITION
+		#-----------------------------------------------------------------------
+		# 1 - 6        Record name    "HETATM"
+		# 7 - 11       Integer        serial        Atom serial number.
+		#13 - 16       Atom           name          Atom name.
+		#17            Character      altLoc        Alternate location indicator.
+		#18 - 20       Residue name   resName       Residue name.
+		#22            Character      chainID       Chain identifier.
+		#23 - 26       Integer        resSeq        Residue sequence number.
+		#27            AChar          iCode         Code for insertion of residues.
+		#31 - 38       Real(8.3)      x             Orthogonal coordinates for X.
+		#39 - 46       Real(8.3)      y             Orthogonal coordinates for Y.
+		#47 - 54       Real(8.3)      z             Orthogonal coordinates for Z.
+		#55 - 60       Real(6.2)      occupancy     Occupancy.
+		#61 - 66       Real(6.2)      tempFactor    Temperature factor.
+		#77 - 78       LString(2)     element       Element symbol; right-justified.
+		#79 - 80       LString(2)     charge        Charge on the atom.
+
+		elif record=="HETATM":
+			if heterocolors:
+				# colors consist of:
+				# bluewhite for oxygen in H2O, as [0.85,0.85,1.00]
+				# paleblue for metals, as [0.75,0.75,1.0]
+				# brightorange for most other ligands, as [1.00,0.70,0.20]
+				heteroname = line[17:20].strip()
+				element = line[76:78].strip()
+				if heteroname=="HOH":
+					score = 21
+				elif element=="NA" or element=="K":
+					score = 22
+				elif element=="MG" or element=="CA" or element=="ZN" or element=="FE":
+					score = 23
+				else:
+					score = 24
+			else: # color as null
 				score = 99
 			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:].rstrip() )
 			print >> wayout, newline

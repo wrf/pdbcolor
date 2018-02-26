@@ -32,12 +32,12 @@ def color_likelihood(selection="all", whitebg=False):
              [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
              [0.12,0.44,0.88] ]
 
-	if whitebg: # replaces colors -1, 7, 8
-		colors = [ [0.95,1.00,0.50] ,
+	if whitebg: # replaces colors -1, 7, 8, 16
+		colors = [ [0.99,0.87,0.37] ,
              [0.11,0.57,0.06] , [0.12,0.63,0.21] , [0.19,0.74,0.34] ,
              [0.18,0.77,0.48] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
              [0.39,0.72,0.60] , [0.82,0.95,0.87] ,
-             [0.93,0.80,0.78] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
+             [0.95,0.81,0.88] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
              [0.78,0.24,0.48] , [0.77,0.22,0.44] , [0.77,0.20,0.33] ,
              [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
              [0.12,0.23,0.66] ]
@@ -69,7 +69,7 @@ def color_likelihood(selection="all", whitebg=False):
 		upper = lower + 0.99
 
 		# Print out B-factor limits and the color for this group
-		print lower, " - ", upper, " = ", colors[i]
+		print lower, " = ", colors[i]
 
 		# Define a unique name for the atoms which fall into this group
 		groupname = groupnames[i] + "_group_s" + str(i+1)
@@ -102,7 +102,10 @@ def color_likelihood(selection="all", whitebg=False):
 	cmd.select("insufficient", selection + " & b > 16")
 	cmd.color("insufficient_color", "insufficient")
 
-	print "to use white background color scheme, type 'color_likelihood(whitebg=True)'"
+	if whitebg:
+		print "using color set for white backgrounds"
+	else:
+		print "to use the color scheme for white backgrounds, type: color_likelihood(whitebg=True)"
 
 # This is required to make command available in PyMOL 
 cmd.extend("color_likelihood", color_likelihood)
