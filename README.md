@@ -1,7 +1,7 @@
 # pdbcolor
 Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed.
 
-For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the temperatureFactor or beta-factor is the second to last term, here in the first atom it is 0.82.
+For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
@@ -10,6 +10,8 @@ Each script identifies the residue number (here alanine is the 11th residue of t
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  5.00           N  `
 
 Running the scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
+
+**Note: the temperature factors are a measure of the confidence of the position of each atom. Higher temperature would mean less confident (typical for surface residues or side-chains). Thus, if a residue is highly conserved (such as those highlighted by the scripts below), it is advisable to also check the temperature factors prior to recoding, such as using the PyMOL command** `spectrum b`.
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 
@@ -20,10 +22,8 @@ Colors are defined in the `color_by_identity.py` script, where triplets are RGB 
 
 These values range from 1.00 to 9.00, for a gradient of percentage points. The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
 
-**At the moment, this script can only recode a single protein per PDB file, meaning hetero-multimers are not co-colored.** If a PDB file contains multiple other proteins, metals, ligands, DNA, etc., all of these will be colored the "null" color.
-
 ### Instructions ###
-1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](https://bitbucket.org/wrf/squid-transcriptomes/src) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft`.
+1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](http://www.uniprot.org/uniprot/C6KYS2) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft` using an example [dataset](https://bitbucket.org/wrf/squid-transcriptomes/src) from [Francis et al 2013 Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/).
 
 `mafft-linsi examples/symplectins_w_outgroups.fasta > examples/symplectins_w_outgroups.aln`
 
@@ -42,6 +42,23 @@ These values range from 1.00 to 9.00, for a gradient of percentage points. The c
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/examples/symplectin_domains_by_conservation.png)
 
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
+
+### Instructions for multiple proteins ###
+For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
+
+The instructions above are used, but instead multiple alignments and sequence names are given for the `-a` and `-s` options in step 2. Here an [alignment](https://bitbucket.org/molpalmuc/sponge-oxygen) is used from [Mills et al 2018](https://elifesciences.org/articles/31176) to plot site identity information onto the [structure of the heterodimer](http://www.rcsb.org/structure/4ZPR) of two mouse helix-loop-helix transcription factors, [HIF1A](http://www.uniprot.org/uniprot/Q61221) and [ARNT](http://www.uniprot.org/uniprot/P53762).
+
+`pdb_site_identity.py -a all_hif1.aln all_hif1.aln -s HIF1A_MOUSE ARNT_MOUSE -p 4zpr.pdb > 4zpr_w_id.pdb`
+
+In the PyMOL console, run the commands:
+
+`run color_by_identity.py`
+
+`color_by_identity(bychain=True)`
+
+Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization.
+
+![4zpr_w_id.png](https://github.com/wrf/pdbcolor/blob/master/examples/4zpr_w_id.png)
 
 ## RAxML site-wise likelihood ##
 For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between two topologies can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a hex string where a dlnL of 0 becomes exactly 8.0 to include the range of values but also permit each value to be coded as a single character (for display as a fasta sequence). 
