@@ -2,7 +2,7 @@
 #
 # color_by_likelihood.py v1 2018-02-01
 
-'''color_by_likelihood.py v1.2 2018-03-05
+'''color_by_likelihood.py v1.1 2018-02-22
 
 in PyMOL, use by:
 
@@ -15,23 +15,38 @@ def color_likelihood(selection="all", whitebg=False):
 	# each color is RGB triplet, values ranging from 0 to 1, where black is 0 and white is 1
 	# colors should be:
 	# for values [ -1 gray
-	#            0 clay   1 pink   2 red
-	#            3 mud    4 teal   5 green
-	#            6 lead   7 cobalt 8 blue
-	#            9 orange ]
+	#            0 green   1   2
+	#            3 sea-green   4   5 teal
+	#            6 verdigris 7 mud
+	#            8 clay   9 pink   a
+	#            b rose   c        d
+	#            e red    f
+	#            16 blue ]
 
 	colors = [ [0.39, 0.39, 0.39] ,
-             [0.49,0.36,0.40] , [0.76,0.26,0.56] , [0.77,0.20,0.33] ,
-             [0.42,0.49,0.42] , [0.26,0.77,0.64] , [0.19,0.74,0.34] ,
-             [0.39,0.37,0.55] , [0.35,0.26,0.76] , [0.24,0.45,0.87] ,
-             [1.00,0.60,0.12] ]
+             [0.11,0.57,0.06] , [0.12,0.63,0.21] , [0.19,0.74,0.34] ,
+             [0.18,0.77,0.48] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
+             [0.39,0.72,0.60] , [0.42,0.49,0.42] ,
+             [0.49,0.36,0.40] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
+             [0.78,0.24,0.48] , [0.77,0.22,0.44] , [0.77,0.20,0.33] ,
+             [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
+             [0.12,0.44,0.88] ]
 
-	if whitebg: # replaces colors -1, 0, 3, 6, 9
+	if whitebg: # replaces colors -1, 7, 8, 16
 		colors = [ [0.99,0.87,0.37] ,
-             [0.83,0.74,0.76] , [0.76,0.26,0.56] , [0.77,0.20,0.33] ,
-             [0.73,0.82,0.73] , [0.26,0.77,0.64] , [0.19,0.74,0.34] ,
-             [0.74,0.73,0.86] , [0.35,0.26,0.76] , [0.24,0.45,0.87] ,
-             [0.84,0.46,0.00] ]
+             [0.11,0.57,0.06] , [0.12,0.63,0.21] , [0.19,0.74,0.34] ,
+             [0.18,0.77,0.48] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
+             [0.39,0.72,0.60] , [0.82,0.95,0.87] ,
+             [0.95,0.81,0.88] , [0.72,0.33,0.56] , [0.76,0.26,0.56] ,
+             [0.78,0.24,0.48] , [0.77,0.22,0.44] , [0.77,0.20,0.33] ,
+             [0.77,0.18,0.22] , [0.77,0.16,0.14] ,
+             [0.12,0.23,0.66] ]
+
+	# v1 values of blue to teal
+    #         [0.00,0.22,0.72] , [0.05,0.38,0.71] , [0.07,0.47,0.70] ,
+    #         [0.11,0.63,0.69] , [0.16,0.82,0.67] , [0.26,0.77,0.64] ,
+	# v1 constant color as green
+    #         [0.21,0.66,0.00] ]
 
 	# colors for:
 	# 7d7d00 dark yellow    b28b71 sand    640064 burgundy
@@ -40,16 +55,15 @@ def color_likelihood(selection="all", whitebg=False):
                  [0.59,0.39,0.00] , [0.47,0.33,0.51] , [0.29,0.39,0.10] ] 
 
 	groupnames = [ "gaps", 
-                  "t1-weak", "t1-strong", "t1-max",
-                  "t2-weak", "t2-strong", "t2-max",
-                  "t3-weak", "t3-strong", "t3-max",
+                  "t2max", "-5", "-4", "-3", "-2", "-1", "-0.5", "-0.1",
+                  "+0.1", "+0.5", "+1", "+2", "+3", "+4", "+5", "t1max",
                    "const" ]
 
 	bin_size = 1
-	NUMCOLORS = 11
+
 	# iterate through temperatureFactor value in PyMOL
 	# atoms with each value are selected and colored with the following steps
-	for i in range(NUMCOLORS):
+	for i in range(18):
 
 		lower = -1 + i
 		upper = lower + 0.99
@@ -58,12 +72,12 @@ def color_likelihood(selection="all", whitebg=False):
 		print lower, " = ", colors[i]
 
 		# Define a unique name for the atoms which fall into this group
-		groupname = groupnames[i] + "_grp" + str(i+1)
+		groupname = groupnames[i] + "_group_s" + str(i+1)
 
 		# Compose a selection command which will select all atoms with some beta value
 		sel_string = selection + " & ! b < " + str(lower)
 
-		if(i < NUMCOLORS - 1):
+		if(i < 18 - 1):
 			sel_string += " & b < " + str(upper)
 		else:
 			sel_string += " & ! b > " + str(upper)
@@ -85,7 +99,7 @@ def color_likelihood(selection="all", whitebg=False):
 	cmd.set_color("insufficient_color", insuf_color)
 
 	# color atoms with B-factor of 99 using the new color
-	cmd.select("insufficient", selection + " & b > 9")
+	cmd.select("insufficient", selection + " & b > 16")
 	cmd.color("insufficient_color", "insufficient")
 
 	if whitebg:

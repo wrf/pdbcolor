@@ -2,7 +2,7 @@
 #
 # pdb_log_likelihood.py v1 2018-02-01
 
-'''pdb_log_likelihood.py  last modified 2018-02-20
+'''pdb_log_likelihood.py  last modified 2018-03-06
 
 pdb_log_likelihood.py -a PRP4B_HUMAN.aln -p 4ian.pdb -s PRP4B_HUMAN > 4ian_w_lnl.pdb
 
@@ -33,11 +33,12 @@ disordered or cleaved, the sequence still must start with residue 1
 import sys
 import time
 import argparse
-from collections import Counter
+from collections import Counter,defaultdict
 from Bio import AlignIO
 
-def get_alignment_values(alignmentlist, alignformat, targetidlist):
+def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 	scoreindex_dict = {} # dict of dicts, where key is seqID, value is dict where key is position
+	score_counter = defaultdict(int)
 	for alignment,target_seqid in zip(alignmentlist,targetidlist):
 		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
 		alignment = AlignIO.read( alignment, alignformat )
@@ -81,11 +82,13 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist):
 						rankedscore = -1
 					elif lnlvalue == "x" or lnlvalue == "X": # constant sites
 						nongapcount += 1
-						rankedscore = 16
+						rankedscore = 9 # is 9 in T3 version
+						#rankedscore = 16 # is 16 in T2 version
 					else:
 						nongapcount += 1
 						rankedscore = int(lnlvalue,16) # base 16 string to integer
 					index_to_score[targetcount] = rankedscore
+					score_counter[rankedscore] += 1
 			print >> sys.stderr, "# Found likelihood for {} sites for {}".format( nongapcount, target_seqid )
 			scoreindex_dict[target_seqid] = index_to_score
 		elif scoretype=="Heteropecilly_score":
@@ -106,8 +109,13 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist):
 						nongapcount += 1
 						rankedscore = int(hpvalue)
 					index_to_score[targetcount] = rankedscore
+					score_counter[rankedscore] += 1
 			print >> sys.stderr, "# Found heteropecilly for {} sites for {}".format( nongapcount, target_seqid )
 			scoreindex_dict[target_seqid] = index_to_score
+	if printw:
+		print >> sys.stderr, "# SCORES ARE: T1:{}, T2:{}, T3:{}".format(score_counter[1] + score_counter[2], score_counter[4] + score_counter[5], score_counter[7] + score_counter[8])
+		for k,v in score_counter.iteritems():
+			print >> sys.stderr, "#{}\t{}".format(k,v)
 	return scoreindex_dict
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, heterocolors):
@@ -218,6 +226,7 @@ def main(argv, wayout):
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
+	parser.add_argument("-w","--w", action="store_true", help="extra output")
 	parser.add_argument("--color-gaps", action="store_true", help="use dark colors to uniquely color gaps of up to 6 chains")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
 	parser.add_argument("--heteroatoms", action="store_true", help="color heteroatoms")
@@ -226,7 +235,7 @@ def main(argv, wayout):
 	if len(args.alignment) != len(args.sequence):
 		print >> sys.stderr, "ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)), time.asctime()
 
-	scoredict = get_alignment_values( args.alignment, args.format, args.sequence)
+	scoredict = get_alignment_values( args.alignment, args.format, args.sequence, args.w)
 	if scoredict: # indicating that the sequence was found and something was calculated
 		rewrite_pdb(args.pdb, args.sequence, scoredict, wayout, args.force_recode, args.color_gaps, args.heteroatoms)
 	else:
