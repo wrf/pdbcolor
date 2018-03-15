@@ -1,6 +1,12 @@
 # pdbcolor
 Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed.
 
+Existing schemes include:
+* [percent identity](https://github.com/wrf/pdbcolor#percent-identity) calculated directly from the alignment
+* [RAxML sitewise likelihoods](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), based on relative substitution probabilities between multiple fixed phylogenetic trees
+* [phylobayes sitewise likelihoods](https://github.com/wrf/pdbcolor#phylobayes-site-wise-likelihood), as above for RAxML, but using the program [phylobayes](https://github.com/bayesiancook/pbmpi)
+* [heteropecilly calculations](https://github.com/wrf/pdbcolor#heteropecilly), based on calculations of lineage-specific amino acid substitutions from [Simion et al 2017](https://github.com/psimion/SuppData_Metazoa_2017)
+
 For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
@@ -46,11 +52,11 @@ In the left panel, certain residues in the binding pocket are strongly conserved
 ### Instructions for multiple proteins ###
 For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
 
-The instructions above are used, but instead multiple alignments and sequence names are given for the `-a` and `-s` options in step 2. Here an [alignment](https://bitbucket.org/molpalmuc/sponge-oxygen) is used from [Mills et al 2018](https://elifesciences.org/articles/31176) to plot site identity information onto the [structure of the heterodimer](http://www.rcsb.org/structure/4ZPR) of two mouse helix-loop-helix transcription factors, [HIF1A](http://www.uniprot.org/uniprot/Q61221) and [ARNT](http://www.uniprot.org/uniprot/P53762).
+The instructions above are used, but instead multiple alignments and sequence names are given for the `-a` and `-s` options in step 2. Here an [alignment](https://bitbucket.org/molpalmuc/sponge-oxygen) is used from [Mills et al 2018](https://elifesciences.org/articles/31176) to plot site identity information onto the [structure of the heterodimer](http://www.rcsb.org/structure/4ZPR) of two mouse helix-loop-helix transcription factors, [HIF1A](http://www.uniprot.org/uniprot/Q61221) and [ARNT](http://www.uniprot.org/uniprot/P53762). The same alignment may be given multiple times as long as the sequences are found, otherwise several different alignments could be used, say for protein subfamilies or individual clades.
 
 `pdb_site_identity.py -a all_hif1.aln all_hif1.aln -s HIF1A_MOUSE ARNT_MOUSE -p 4zpr.pdb > 4zpr_w_id.pdb`
 
-In the PyMOL console, run the commands:
+In the PyMOL console, run `color_by_identity.py` script. Then, up to 4 different chains can receive unique color schemes of grayscales to red, green, blue, or yellow, with the `bychain=True` option.
 
 `run color_by_identity.py`
 
@@ -67,15 +73,30 @@ While most sites are marginally different - values between 0 and 0.5 - colored r
 
 ![likelihood_color_scheme_w_tree_v2.png](https://github.com/wrf/pdbcolor/blob/master/svg/likelihood_color_scheme_w_tree_v2.png)
 
-Detailed instructions are currently in the [heteropecilly github repo](https://github.com/wrf/heteropecilly)
+The workflow is meant to begin from a supermatrix, meaning a lot of other data need to be generated and organized and assumes that most proteins in the supermatrix are trimmed or are incomplete. The steps required are:
 
-The workflow is meant to begin from a supermatrix, meaning a lot of other data need to be generated and organized and assumes that most proteins in the supermatrix are trimmed or are incomplete. Briefly, the steps required are:
+1) Starting from a protein supermatrix ( see [supermatrix repo for scripts to manipulate matrices](https://github.com/wrf/supermatrix) ), run `RAxML` to get sitewise likelihoods of the entire dataset, then convert that output to tabular using the `sitewise_ll_to_columns.py` script. For example, using the [Simion 2017 dataset](https://github.com/psimion/SuppData_Metazoa_2017):
 
-1) Starting from a protein supermatrix ( see [supermatrix repo for scripts to manipulate matrices](https://github.com/wrf/supermatrix) ), run `RAxML` to get sitewise likelihoods of the entire dataset, then convert that output to tabular using the `sitewise_ll_to_columns.py` script.
-2) Because constant sites may still receive lnL values from RAxML (which is biologically meaningless) these should be recoded to a value indicating they are constant using the `sitewise_recode_constant_sites.py` [script](https://github.com/wrf/heteropecilly/blob/master/sitewise_recode_constant_sites.py). Using the matrix and the tabular likelihoods, recode constant sites and generate a new tabular output file that can be used in step 5.
+`raxmlHPC-PTHREADS-SSE3-8.2.11 -f G -s simion2017_97sp_401632pos_1719genes.phy -m PROTGAMMALG -z tree_97sp_CAT.rooted_combined.tre -n simion2017_fullset -T 6`
+
+`./sitewise_ll_to_columns.py RAxML_perSiteLLs.simion2017_fullset > RAxML_perSiteLLs.simion2017_fullset.tab`
+
+2) Because constant sites may still receive lnL values from RAxML (which is biologically meaningless) these should be recoded to a value indicating they are constant using the `sitewise_recode_constant_sites.py` [script](https://github.com/wrf/pdbcolor/blob/master/sitewise_scripts/sitewise_recode_constant_sites.py). Using the matrix and the tabular likelihoods, recode constant sites and generate a new tabular output file that can be used in step 5.
+
+`sitewise_recode_constant_sites.py -a simion2017_97sp_401632pos_1719genes.fasta -l RAxML_perSiteLLs.simion2017_fullset.tab > RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
+
 3) Split the supermatrix into taxa [with this script](https://github.com/wrf/supermatrix/blob/master/split_supermatrix_to_taxa.py), where a fasta file is generated for each taxon and each protein gets a unique name based on the partition.
+
+`split_supermatrix_to_taxa.py -a simion2017_97sp_401632pos_1719genes.fasta.gz -p simion2017_partitions.txt -d simion2017_taxa`
+
 4) Using `blastp`, align the proteins against a protein set from a reference taxon that has crystal structures of the proteins of interest (probably human) and where the proteins in the reference set are complete, meaning untrimmed.
+
+`blastp -query simion2017_taxa/Homo_sapiens.fasta.nogaps -db human_uniprot.fasta -outfmt 6 -max_target_seqs 1 > simion2017_taxa/hsapiens_vs_uniprot_blastp.tab`
+
 5) With the blast results, generate an alignment of each protein with the reference and a line of the recoded sitewise likelihoods (with `blast_to_align_pairs.py`). Files will be automatically named and contain exactly three fasta entries, the trimmed protein from the supermatrix (which will have gaps), the full protein (the protein of interest that presumably has a crystal structure), and the sitewise likelihoods that should match the trimmed protein. This alignment file is the input for `pdb_log_likelihood.py`.
+
+`blast_to_align_pairs.py -b simion2017_taxa/hsapiens_vs_uniprot_blastp.tab -q simion2017_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r simion2017_taxa/Homo_sapiens.fasta -l RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
+
 6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
 7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
 
@@ -97,10 +118,44 @@ This protein is called diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://ww
 
 For PDB files that contain multiple proteins, additional alignments can optionally be listed with `-a`. The corresponding protein ID must be given in the same order with `-s`.
 
+### detailed instructions for scripts ###
+For details regarding the use of the above scripts involved in [sitewise likelihood calculations](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), see the source code and instructions in the [sitewise_scripts folder](https://github.com/wrf/pdbcolor/tree/master/examples/sitewise_scripts).
+
+## phylobayes site-wise likelihood ##
+Average site-wise likelihoods can be calculated from [phylobayes](https://github.com/bayesiancook/pbmpi). The procedure of plotting these onto a structure is similar to the above instructions for [RAxML](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), with a few differences in program operation and analysis.
+
+Again, the workflow is meant to begin from a supermatrix. The steps required are:
+
+1) Starting from a protein supermatrix in *relaxed phylip* format, run `pbmpi` to generate a Markov chain for each fixed tree topology. For example, on a hypothetical dataset called `dataset.phy` with two or three different fixed trees (same ones used for RAxML):
+
+`mpirun -np 6 ~/pbmpi/data/pb_mpi -d dataset.phy -T dataset_t1.tree -cat -gtr d1_t1_chain1`
+
+2) Run the post-analysis program `readpb-mpi` to calculate average sitewise likelihoods on some part of the chain. This operation may take substantially longer than running the chain in the first place.
+
+`mpirun -np 6 ~/pbmpi/data/readpb_mpi -sitelogl -x 50 5 d1_t1_chain1`
+
+3) Use the script `sitewise_join_phylobayes_sitelogl.py` to join each of the `.sitelogl` files from each tree into one.
+
+`sitewise_join_phylobayes_sitelogl.py d1_t1_chain1.sitelogl d1_t2_chain1.sitelogl d1_t3_chain1.sitelogl > d1_combined_sitelogl.tab`
+
+4) Then proceed [as above from step 2 to step 7](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), noting one additional difference in downstream processing. In the original analysis by [Shen et al 2017](https://www.nature.com/articles/s41559-017-0126), sites with a disproportionate influence (called "strong sites") were defined as those with a dlnL of `0.5` or greater. Based on the site-homogeneous calculations in `RAxML`, this comes out to around 1-2% of sites, roughly 3 standard deviations apart from the mean (exact is `0.456`). For `phylobayes` under CAT-GTR, substantially more transitions are considered "probable", and almost 10% of sites would have dlnL values above 0.5. Thus, to produce similar numbers of strong sites in `phylobayes`, 3 standard deviations approximates to around a dlnL of `1.0` (exact is `0.959`), which must instead be used as the the "strong site" threshold. Therefore, in `blast_to_align_pairs.py`, the "strong site threshold" option `-t` must be set to `1.0`.
+
+`blast_to_align_pairs.py -b dataset_taxa/hsapiens_vs_uniprot_blastp.tab -q dataset_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r dataset_taxa/Homo_sapiens.fasta -l d1_combined_sitelogl_const_recoded.tab -t 1.0`
+
+All other steps are done as above.
+
 ## heteropecilly ##
-The steps are almost identical to the sitewise likelihood above, only the site-wise heteropecilly calculations are used instead. Steps 3 and 4 are the same. See the [heteropecilly github repo](https://github.com/wrf/heteropecilly) for details. 
+The steps are almost identical to the [sitewise likelihood above](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), only the site-wise heteropecilly calculations are used instead. Steps 3 and 4 are the same, but the tabular heteropecilly information must instead be given in step 5 for `blast_to_align_pairs.py`. See the [heteropecilly github repo](https://github.com/wrf/heteropecilly) for further instructions and analysis.
 
 ![heteropecilly_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/heteropecilly_color_scheme.png)
 
-## References ##
-The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/)
+`blast_to_align_pairs.py -b simion2017_taxa/hsapiens_vs_uniprot_blastp.tab -q simion2017_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r simion2017_taxa/Homo_sapiens.fasta -p hp_by_site_w_const.tab`
+
+Heteropecilly color scheme can be visualized within Pymol, using the command in the console `run ~/git/pdbcolor/color_by_heteropecilly.py`
+
+Below is an example from [2o8b.pdb](https://www.rcsb.org/structure/2o8b), which is the structure of the mismatch repair protein [MSH2](http://www.uniprot.org/uniprot/P43246)/[MSH6](http://www.uniprot.org/uniprot/P52701) heterodimer (see [Warren et al 2007 Structure of the human MutSalpha DNA lesion recognition complex.](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815)). Heteropecilly scores were only calculated for MSH2, so the other protein is colored in pale gray. Gaps or missing data are dark gray, constant sites are green, and the colors follow the deciles as in the charts above. In this example, the DNA helix is colored yellow, to distinguish it from the protein. Several features are evident. Large sections of the alignment had been removed by trimming, resulting in gaps when compared to the reference protein, and dark gray regions throughout the protein (long helix connecting the "clamp" domain to the ATPase domain). Constant sites form a distinct sector at the top of the image, primarily comprising the ATPase domain, probably also involved in the interface with MSH6. Many heteropecillious sites (red) appear to occur on the surface of the protein, perhaps directly interacting with the solvent or other proteins, though the extent of this was not precisely calculated. This may mean that, in general, heteropecillious sites and lineage-specific changes are a reflection of unique interactions *between* proteins.
+
+![2o8b_w_hp.png](https://github.com/wrf/pdbcolor/blob/master/examples/2o8b_w_hp.png)
+
+# References #
+The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
