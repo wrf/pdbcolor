@@ -31,19 +31,19 @@ These values range from 1.00 to 9.00, for a gradient of percentage points. The c
 ### Instructions ###
 1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](http://www.uniprot.org/uniprot/C6KYS2) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft` using an example [dataset](https://bitbucket.org/wrf/squid-transcriptomes/src) from [Francis et al 2013 Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/).
 
-`mafft-linsi examples/symplectins_w_outgroups.fasta > examples/symplectins_w_outgroups.aln`
+    `mafft-linsi examples/symplectins_w_outgroups.fasta > examples/symplectins_w_outgroups.aln`
 
 2) Using the alignment and the PDB file (here generated using the [SWISS-MODEL](https://www.swissmodel.expasy.org/) server), reassign the temperatureFactors based on conservation scores using `pdb_site_identity.py`. The target sequence is indicated using the `-s` option, and must exactly match the name given in the alignment. The script assumes the residues in the PDB file are numbered based on this sequence, meaning even if the PDB file starts with residue 20 (say the first 19 were disordered or cleaved), the sequence still must start with residue 1.
 
-`./pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln > examples/symplectin_swissmodel_01_w_id.pdb`
+    `./pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln > examples/symplectin_swissmodel_01_w_id.pdb`
 
 3) Open the PDB file in PyMOL:
 
-`pymol examples/symplectin_swissmodel_01_w_id.pdb`
+    `pymol examples/symplectin_swissmodel_01_w_id.pdb`
 
 4) In the PyMOL console, run the command:
 
-`run color_by_identity.py`
+    `run color_by_identity.py`
 
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/examples/symplectin_domains_by_conservation.png)
 
@@ -77,25 +77,25 @@ The workflow is meant to begin from a supermatrix, meaning a lot of other data n
 
 1) Starting from a protein supermatrix ( see [supermatrix repo for scripts to manipulate matrices](https://github.com/wrf/supermatrix) ), run `RAxML` to get sitewise likelihoods of the entire dataset, then convert that output to tabular using the `sitewise_ll_to_columns.py` script. For example, using the [Simion 2017 dataset](https://github.com/psimion/SuppData_Metazoa_2017):
 
-`raxmlHPC-PTHREADS-SSE3-8.2.11 -f G -s simion2017_97sp_401632pos_1719genes.phy -m PROTGAMMALG -z tree_97sp_CAT.rooted_combined.tre -n simion2017_fullset -T 6`
+    `raxmlHPC-PTHREADS-SSE3-8.2.11 -f G -s simion2017_97sp_401632pos_1719genes.phy -m PROTGAMMALG -z tree_97sp_CAT.rooted_combined.tre -n simion2017_fullset -T 6`
 
-`./sitewise_ll_to_columns.py RAxML_perSiteLLs.simion2017_fullset > RAxML_perSiteLLs.simion2017_fullset.tab`
+    `./sitewise_ll_to_columns.py RAxML_perSiteLLs.simion2017_fullset > RAxML_perSiteLLs.simion2017_fullset.tab`
 
 2) Because constant sites may still receive lnL values from RAxML (which is biologically meaningless) these should be recoded to a value indicating they are constant using the `sitewise_recode_constant_sites.py` [script](https://github.com/wrf/pdbcolor/blob/master/sitewise_scripts/sitewise_recode_constant_sites.py). Using the matrix and the tabular likelihoods, recode constant sites and generate a new tabular output file that can be used in step 5.
 
-`sitewise_recode_constant_sites.py -a simion2017_97sp_401632pos_1719genes.fasta -l RAxML_perSiteLLs.simion2017_fullset.tab > RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
+    `sitewise_recode_constant_sites.py -a simion2017_97sp_401632pos_1719genes.fasta -l RAxML_perSiteLLs.simion2017_fullset.tab > RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
 
 3) Split the supermatrix into taxa [with this script](https://github.com/wrf/supermatrix/blob/master/split_supermatrix_to_taxa.py), where a fasta file is generated for each taxon and each protein gets a unique name based on the partition.
 
-`split_supermatrix_to_taxa.py -a simion2017_97sp_401632pos_1719genes.fasta.gz -p simion2017_partitions.txt -d simion2017_taxa`
+    `split_supermatrix_to_taxa.py -a simion2017_97sp_401632pos_1719genes.fasta.gz -p simion2017_partitions.txt -d simion2017_taxa`
 
 4) Using `blastp`, align the proteins against a protein set from a reference taxon that has crystal structures of the proteins of interest (probably human) and where the proteins in the reference set are complete, meaning untrimmed.
 
-`blastp -query simion2017_taxa/Homo_sapiens.fasta.nogaps -db human_uniprot.fasta -outfmt 6 -max_target_seqs 1 > simion2017_taxa/hsapiens_vs_uniprot_blastp.tab`
+    `blastp -query simion2017_taxa/Homo_sapiens.fasta.nogaps -db human_uniprot.fasta -outfmt 6 -max_target_seqs 1 > simion2017_taxa/hsapiens_vs_uniprot_blastp.tab`
 
 5) With the blast results, generate an alignment of each protein with the reference and a line of the recoded sitewise likelihoods (with `blast_to_align_pairs.py`). Files will be automatically named and contain exactly three fasta entries, the trimmed protein from the supermatrix (which will have gaps), the full protein (the protein of interest that presumably has a crystal structure), and the sitewise likelihoods that should match the trimmed protein. This alignment file is the input for `pdb_log_likelihood.py`.
 
-`blast_to_align_pairs.py -b simion2017_taxa/hsapiens_vs_uniprot_blastp.tab -q simion2017_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r simion2017_taxa/Homo_sapiens.fasta -l RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
+    `blast_to_align_pairs.py -b simion2017_taxa/hsapiens_vs_uniprot_blastp.tab -q simion2017_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r simion2017_taxa/Homo_sapiens.fasta -l RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
 
 6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
 7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
@@ -119,7 +119,7 @@ This protein is called diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://ww
 For PDB files that contain multiple proteins, additional alignments can optionally be listed with `-a`. The corresponding protein ID must be given in the same order with `-s`.
 
 ### detailed instructions for scripts ###
-For details regarding the use of the above scripts involved in [sitewise likelihood calculations](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), see the source code and instructions in the [sitewise_scripts folder](https://github.com/wrf/pdbcolor/tree/master/examples/sitewise_scripts).
+For details regarding the use of the above scripts involved in [sitewise likelihood calculations](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), see the source code and instructions in the [sitewise_scripts folder](https://github.com/wrf/pdbcolor/tree/master/sitewise_scripts).
 
 ## phylobayes site-wise likelihood ##
 Average site-wise likelihoods can be calculated from [phylobayes](https://github.com/bayesiancook/pbmpi). The procedure of plotting these onto a structure is similar to the above instructions for [RAxML](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), with a few differences in program operation and analysis.
@@ -128,19 +128,19 @@ Again, the workflow is meant to begin from a supermatrix. The steps required are
 
 1) Starting from a protein supermatrix in *relaxed phylip* format, run `pbmpi` to generate a Markov chain for each fixed tree topology. For example, on a hypothetical dataset called `dataset.phy` with two or three different fixed trees (same ones used for RAxML):
 
-`mpirun -np 6 ~/pbmpi/data/pb_mpi -d dataset.phy -T dataset_t1.tree -cat -gtr d1_t1_chain1`
+    `mpirun -np 6 ~/pbmpi/data/pb_mpi -d dataset.phy -T dataset_t1.tree -cat -gtr d1_t1_chain1`
 
 2) Run the post-analysis program `readpb-mpi` to calculate average sitewise likelihoods on some part of the chain. This operation may take substantially longer than running the chain in the first place.
 
-`mpirun -np 6 ~/pbmpi/data/readpb_mpi -sitelogl -x 50 5 d1_t1_chain1`
+    `mpirun -np 6 ~/pbmpi/data/readpb_mpi -sitelogl -x 50 5 d1_t1_chain1`
 
 3) Use the script `sitewise_join_phylobayes_sitelogl.py` to join each of the `.sitelogl` files from each tree into one.
 
-`sitewise_join_phylobayes_sitelogl.py d1_t1_chain1.sitelogl d1_t2_chain1.sitelogl d1_t3_chain1.sitelogl > d1_combined_sitelogl.tab`
+    `sitewise_join_phylobayes_sitelogl.py d1_t1_chain1.sitelogl d1_t2_chain1.sitelogl d1_t3_chain1.sitelogl > d1_combined_sitelogl.tab`
 
 4) Then proceed [as above from step 2 to step 7](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), noting one additional difference in downstream processing. In the original analysis by [Shen et al 2017](https://www.nature.com/articles/s41559-017-0126), sites with a disproportionate influence (called "strong sites") were defined as those with a dlnL of `0.5` or greater. Based on the site-homogeneous calculations in `RAxML`, this comes out to around 1-2% of sites, roughly 3 standard deviations apart from the mean (exact is `0.456`). For `phylobayes` under CAT-GTR, substantially more transitions are considered "probable", and almost 10% of sites would have dlnL values above 0.5. Thus, to produce similar numbers of strong sites in `phylobayes`, 3 standard deviations approximates to around a dlnL of `1.0` (exact is `0.959`), which must instead be used as the the "strong site" threshold. Therefore, in `blast_to_align_pairs.py`, the "strong site threshold" option `-t` must be set to `1.0`.
 
-`blast_to_align_pairs.py -b dataset_taxa/hsapiens_vs_uniprot_blastp.tab -q dataset_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r dataset_taxa/Homo_sapiens.fasta -l d1_combined_sitelogl_const_recoded.tab -t 1.0`
+    `blast_to_align_pairs.py -b dataset_taxa/hsapiens_vs_uniprot_blastp.tab -q dataset_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r dataset_taxa/Homo_sapiens.fasta -l d1_combined_sitelogl_const_recoded.tab -t 1.0`
 
 All other steps are done as above.
 
