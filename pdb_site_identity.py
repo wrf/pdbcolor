@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2018-01-08
+'''pdb_site_identity.py  last modified 2018-04-02
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -14,10 +14,11 @@ Record name      Residue         Position as X Y Z
 such as:
 ATOM      1  N   PRO A  46       0.739  40.031  44.896  1.00 0.842           N
 
-here, the temperatureFactor will be replaced with either the identity %
-or an integer for the ranked identity score, where bins are:
+here, the temperatureFactor will be replaced with the identity %,
+where bins are:
 0, 50, 60, 70, 80, 90, 95, 98, 100%
-corresponding to scores of 1 to 9
+
+proteins or ligands not in the alignment are coded as -1, and colored "null"
 
 residue number must match the alignment, not the position in the model
 meaning even if the PDB file starts with residue 20, if the first 19 were
@@ -28,9 +29,71 @@ import sys
 import time
 import argparse
 from collections import Counter
+from numpy import log
 from Bio import AlignIO
 
-def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff, store_identity=False):
+def get_conservation(alignmentlist, alignformat, targetidlist):
+	'''read alignment and calculate conservation scores for each position, and return a dict where key is seqid, value is a dict of positions and scores
+
+    positional conservation scores defined by:
+    D (divergence) = f(i,a) * ln( f(i,a)/q(a) ) + (1 - f(i,a)) * ln ( (1-f(i,a))/(1-q(a)) )
+    f(i,a) is frequency of amino acid 'a' at position 'i'
+    q(a) is background frequency of amino acid 'a' in all proteins in the alignment'''
+	consindex_dict = {} # key is target seqid, value is dict of conservation scores
+	for alignment, target_seqid in zip(alignmentlist,targetidlist):
+		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+		alignment = AlignIO.read( alignment, alignformat )
+
+		al_length = alignment.get_alignment_length()
+		num_taxa = len(alignment)
+
+		print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+
+		targetseq = None
+		for seqrec in alignment:
+			if seqrec.id==target_seqid:
+				targetseq = seqrec.seq
+		if targetseq is None:
+			print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+			return None
+
+		index_to_cons = {}
+		targetcount = 0 # keep track of position in target sequence for all non-gap letters
+
+		base_aa_counts = Counter()
+		print >> sys.stderr, "# Calculating global amino acid frequencies", time.asctime()
+		for i in range(al_length): # only iterate over columns that are not gaps in target seq
+			targetletter = targetseq[i]
+			if targetletter != "-": # meaning anything except gaps
+				alignment_column = alignment[:,i] # all letters per site
+				base_aa_counts.update(alignment_column)
+		total_base_aas = sum(base_aa_counts.values()) - base_aa_counts.get("-",0)
+		base_frequencies = dict([ (AA, base_aa_counts[AA]*1.0/total_base_aas) for AA in "ACDEFGHIKLMNPQRSTVWY-"])
+		#print >> sys.stderr, base_frequencies
+
+		print >> sys.stderr, "# Calculating sitewise conservation", time.asctime()
+		for i in range(al_length):
+			targetletter = targetseq[i]
+			if targetletter != "-": # meaning anything except gaps
+				targetcount += 1
+				alignment_column = alignment[:,i] # all letters per site
+				nogap_alignment_column = alignment_column.replace("-","").replace("X","") # excluding gaps
+				aa_counter = Counter( nogap_alignment_column )
+
+				# calculate float of no-gaps/all characters
+				target_freq = aa_counter[targetletter] * 1.0 / len(nogap_alignment_column)
+				if target_freq == 1: # otherwise will divide by zero at 1-f(i,a), so simplifies
+					conservation = log(1/base_frequencies[targetletter])
+				else: # calculate by formula
+					conservation = target_freq * log(target_freq/base_frequencies[targetletter]) + ( (1-target_freq) * log( (1-target_freq)/(1-base_frequencies[targetletter]) ) )
+			#	print >> sys.stderr, i, targetletter, target_freq, base_frequencies[targetletter], conservation # aa_counter
+				# if reporting raw percentage
+				index_to_cons[targetcount] = conservation
+		print >> sys.stderr, "# Calculated conservation for {} sites".format( len(index_to_cons) )
+		consindex_dict[target_seqid] = index_to_cons
+	return consindex_dict
+
+def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 	identindex_dict = {} # key is target seqid, value is dict of identities
 	for alignment, target_seqid in zip(alignmentlist,targetidlist):
 		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
@@ -66,31 +129,8 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff, 
 					conservation = 100.0 * aa_counter[targetletter] / len(alignment_column)
 				else: # meaning has more characters than gaps, so calculate normal conservation
 					conservation = 100.0 * aa_counter[targetletter] / len(nogap_alignment_column)
-
-				# if reporting raw percentage
-				if store_identity:
-					index_to_identity[targetcount] = conservation
-				else: # otherwise use ranked score from 1 to 9
-					if conservation == 100.0:
-						rankedscore = 9
-					elif conservation >= 98.0:
-						rankedscore = 8
-					elif conservation >= 95.0:
-						rankedscore = 7
-					elif conservation >= 90.0:
-						rankedscore = 6
-					elif conservation >= 80.0:
-						rankedscore = 5
-					elif conservation >= 70.0:
-						rankedscore = 4
-					elif conservation >= 60.0:
-						rankedscore = 3
-					elif conservation >= 50.0:
-						rankedscore = 2
-					else:
-						rankedscore = 1
-					index_to_identity[targetcount] = rankedscore
-		print >> sys.stderr, "# Calculated conservation for {} sites".format( len(index_to_identity) )
+				index_to_identity[targetcount] = conservation
+		print >> sys.stderr, "# Calculated sitewise identity for {} sites".format( len(index_to_identity) )
 		identindex_dict[target_seqid] = index_to_identity
 	return identindex_dict
 
@@ -146,7 +186,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 				if residuescore:
 					residuecounter[residue] = True
 			else: # meaning in another chain, so color as insufficient
-				residuescore = 0
+				residuescore = -1
 			newline = "{}{:6.2f}{}".format( line[:60], residuescore, line[66:].rstrip() )
 			print >> wayout, newline
 		else: # this will also print DBREF lines
@@ -161,9 +201,9 @@ def main(argv, wayout):
 		argv.append('-h')
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
 	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment", required=True)
+	parser.add_argument("-c","--conservation", action="store_true", help="calculate sitewise positional conservation (CT model)")
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-g","--gap-cutoff", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [0.5]")
-	parser.add_argument("-i","--identity", action="store_true", help="report percent identity instead of score")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
@@ -175,7 +215,10 @@ def main(argv, wayout):
 	if len(args.sequence) > len(set(args.sequence)):
 		print >> sys.stderr, "ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s"
 
-	conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff, args.identity)
+	if args.conservation:
+		conservedict = get_conservation( args.alignment, args.format, args.sequence)
+	else:
+		conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff)
 	if conservedict: # indicating that the sequence was found and something was calculated
 		rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode)
 	else:

@@ -11,9 +11,9 @@ For all cases, the scripts work by changing a value for [each ATOM record in a P
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
-Each script identifies the residue number (here alanine is the 11th residue of the protein sequence, but the first in the model), and changes the temperatureFactor for each atom of that residue. For instance, in the `pdb_site_identity.py` script, the value would be recoded to 5.00, indicating reasonably high identity (>80%) at this position, and this alanine will be colored green.
+Each script identifies the residue number (here alanine is the 11th residue of the protein sequence, but the first in the model), and changes the temperatureFactor for each atom of that residue. For instance, in the `pdb_site_identity.py` example below, the value would be recoded to 81.88, indicating reasonably high identity (>80%) at this position, and this alanine will be colored green.
 
-`ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  5.00           N  `
+`ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00 81.88           N  `
 
 Running the scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
 
@@ -26,14 +26,14 @@ For a target sequence, recolor by percent identity from a multiple sequence alig
 
 Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are defined in the `pdb_site_identity.py` script, where the scores are calculated and printed for each of the ATOM records in the PDB file.
 
-These values range from 1.00 to 9.00, for a gradient of percentage points. The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
+These values range from 0 to 100%, but are grouped into 9 bins. The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
 
 ### Instructions ###
 1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](http://www.uniprot.org/uniprot/C6KYS2) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft` using an example [dataset](https://bitbucket.org/wrf/squid-transcriptomes/src) from [Francis et al 2013 Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/).
 
     `mafft-linsi examples/symplectins_w_outgroups.fasta > examples/symplectins_w_outgroups.aln`
 
-2) Using the alignment and the PDB file (here generated using the [SWISS-MODEL](https://www.swissmodel.expasy.org/) server), reassign the temperatureFactors based on conservation scores using `pdb_site_identity.py`. The target sequence is indicated using the `-s` option, and must exactly match the name given in the alignment. The script assumes the residues in the PDB file are numbered based on this sequence, meaning even if the PDB file starts with residue 20 (say the first 19 were disordered or cleaved), the sequence still must start with residue 1.
+2) Using the alignment and the PDB file (here generated using the [SWISS-MODEL](https://www.swissmodel.expasy.org/) server), reassign the temperatureFactors based on identity percentage using `pdb_site_identity.py`. The target sequence is indicated using the `-s` option, and must exactly match the name given in the alignment. The script assumes the residues in the PDB file are numbered based on this sequence, meaning even if the PDB file starts with residue 20 (say the first 19 were disordered or cleaved), the sequence still must start with residue 1.
 
     `./pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln > examples/symplectin_swissmodel_01_w_id.pdb`
 
@@ -48,6 +48,19 @@ These values range from 1.00 to 9.00, for a gradient of percentage points. The c
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/examples/symplectin_domains_by_conservation.png)
 
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
+
+### Conservation ###
+An alternate measure of conservation can also be calculated using the option `-c`, based on the equations used in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). There, conservation is calculated as the sitewise frequency of amino acid *a* at position *i* over the global frequency of that amino acid. This is calculated as follows:
+
+```
+conservation = f(i,a) * ln( f(i,a)/q(a) ) + ( 1 - f(i,a) ) * ln ( (1-f(i,a)) / (1-q(a)) )
+f(i,a) is frequency of amino acid 'a' at position 'i'
+q(a) is background frequency of amino acid 'a' in all proteins in the alignment
+```
+
+Thus, when `f(i,a)` is 1, the first term reduces to `ln( 1 / q(a) )` and the second term reduces to zero, meaning the conservation score of a constant site is directly related to its overall frequency in the alignment. In effect, this means that constant sites of common amino acids are penalized, which belies their evolutionary importance over time.
+
+`pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln -c > examples/symplectin_swissmodel_01_w_cons.pdb`
 
 ### Instructions for multiple proteins ###
 For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
@@ -73,7 +86,7 @@ While most sites are marginally different - values between 0 and 0.5 - colored r
 
 ![likelihood_color_scheme_w_tree_v2.png](https://github.com/wrf/pdbcolor/blob/master/svg/likelihood_color_scheme_w_tree_v2.png)
 
-The workflow is meant to begin from a supermatrix, meaning a lot of other data need to be generated and organized and assumes that most proteins in the supermatrix are trimmed or are incomplete. The steps required are:
+The workflow is meant to begin from a supermatrix, meaning a lot of other data need to be generated and organized and assumes that most proteins in the supermatrix are trimmed or are incomplete. The entire workflow can be done on a normal laptop in a couple hours. The steps required are:
 
 1) Starting from a protein supermatrix ( see [supermatrix repo for scripts to manipulate matrices](https://github.com/wrf/supermatrix) ), run `RAxML` to get sitewise likelihoods of the entire dataset, then convert that output to tabular using the `sitewise_ll_to_columns.py` script. For example, using the [Simion 2017 dataset](https://github.com/psimion/SuppData_Metazoa_2017):
 
@@ -124,7 +137,7 @@ For details regarding the use of the above scripts involved in [sitewise likelih
 ## phylobayes site-wise likelihood ##
 Average site-wise likelihoods can be calculated from [phylobayes](https://github.com/bayesiancook/pbmpi). The procedure of plotting these onto a structure is similar to the above instructions for [RAxML](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), with a few differences in program operation and analysis.
 
-Again, the workflow is meant to begin from a supermatrix. The steps required are:
+Again, the workflow is meant to begin from a supermatrix, though the analyses in `phylobayes` take substantially longer than for `RAxML` (100x-200x longer), potentially several days for each tree topology. The steps required are:
 
 1) Starting from a protein supermatrix in *relaxed phylip* format, run `pbmpi` to generate a Markov chain for each fixed tree topology. For example, on a hypothetical dataset called `dataset.phy` with two or three different fixed trees (same ones used for RAxML):
 
@@ -159,3 +172,19 @@ Below is an example from [2o8b.pdb](https://www.rcsb.org/structure/2o8b), which 
 
 # References #
 The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
+
+### Conservation ###
+Halabi, N., Rivoire, O. et al (2009) [Protein Sectors: Evolutionary Units of Three-Dimensional Structure](http://dx.doi.org/10.1016/j.cell.2009.07.038). *Cell* 138 (4) 774-786.
+Francis, WR. et al (2017) [Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/). *PeerJ* 5 (1) e3633.
+Mills, DB., Francis, WR. et al (2018) [The last common ancestor of animals lacked the HIF pathway and respired in low-oxygen environments](https://elifesciences.org/articles/31176). *eLife* 7: e31176.
+
+### Phylogenetics ###
+Voynova, NE. et al (2008) [Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/). *Archives of Biochemistry and Biophysics* 480 (1) 58-67.
+Shen, X. et al (2017) [Contentious relationships in phylogenomic studies can be driven by a handful of genes](https://www.nature.com/articles/s41559-017-0126). *Nature Ecology & Evolution* 1 1-10.
+Wild, R. et al (2018) [Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545). *Science* 550: 1-12.
+
+### Heteropecilly ###
+Warren, JJ. et al (2007) [Structure of the human MutSalpha DNA lesion recognition complex](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815). *Molecular Cell* 26 (4) 579-592.
+Roure, B. and H. Philippe (2011) [Site-specific time heterogeneity of the substitution process and its impact on phylogenetic inference](http://www.ncbi.nlm.nih.gov/pubmed/21235782). *BMC Evolutionary Biology* 11:17.
+Simion, P. et al (2017) [A Large and Consistent Phylogenomic Dataset Supports Sponges as the Sister Group to All Other Animals](http://www.sciencedirect.com/science/article/pii/S0960982217301999). *Current Biology* 27 (7) 958-967.
+

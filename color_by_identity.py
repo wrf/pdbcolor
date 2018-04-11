@@ -2,7 +2,7 @@
 #
 # color_by_identity.py v1 2017-07-25
 
-'''color_by_identity.py v1.1 2018-03-02
+'''color_by_identity.py v1.1 2018-04-02
 
     assumes that b-factor values have been recoded by pdb_site_identity.py
 
@@ -49,8 +49,9 @@ def color_by_identity(selection="all", colorscheme="rainbow", bychain=False):
 
 	groupnames = [ "0", "50pct", "60pct", "70pct", "80pct", "90pct", "95pct", "98pct", "100pct" ]
 
-	bin_size = 1
 	num_colors = 9
+	# need 101 as extra unused value to prevent IndexError
+	binvalues = [00.0 ,50.0 ,60.0 ,70.0 ,80.0 ,90.0 ,95.0 ,98.0 ,100, 101]
 
 	# separately color individual chains when multiple alignments are used
 	if bychain:
@@ -76,11 +77,8 @@ def color_by_identity(selection="all", colorscheme="rainbow", bychain=False):
 	for chain in chain_to_colorscheme.iterkeys():
 		for i in range(num_colors):
 
-			lower = 1 + i * bin_size
-			upper = lower + bin_size - 0.01
-
-			# Print out B-factor limits and the color for this group
-			print lower, " - ", upper, " = ", colors[chain_to_colorscheme[chain]][i]
+			lower = binvalues[i]
+			upper = binvalues[i+1]-0.0001
 
 			# Define a unique name for the atoms which fall into this group
 			groupname = groupnames[i] + "_grp_" + str(i+1) + chain
@@ -88,10 +86,13 @@ def color_by_identity(selection="all", colorscheme="rainbow", bychain=False):
 			# Compose a selection command which will select all atoms with some beta value
 			sel_string = chain_to_obj[chain] + " & ! b < " + str(lower)
 
+			# Print out B-factor limits and the color for this group
 			if(i < num_colors - 1):
+				print lower, " - ", upper, " = ", colors[chain_to_colorscheme[chain]][i]
 				sel_string += " & b < " + str(upper)
 			else:
-				sel_string += " & ! b > " + str(upper)
+				print " >= ", lower, " = ", colors[chain_to_colorscheme[chain]][i]
+				#sel_string += " & ! b > " + str(upper)
 
 			# select the atoms
 			cmd.select(groupname, sel_string) 
@@ -110,7 +111,7 @@ def color_by_identity(selection="all", colorscheme="rainbow", bychain=False):
 	cmd.set_color("insufficient_color", insuf_color)
 
 	# color atoms with B-factor of 0 using the new color
-	cmd.select("insufficient", selection + " & b = 0")
+	cmd.select("insufficient", selection + " & b < 0")
 	cmd.color("insufficient_color", "insufficient")
 
 # This is required to make command available in PyMOL 
