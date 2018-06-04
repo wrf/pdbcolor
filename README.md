@@ -3,6 +3,7 @@ Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://
 
 Existing schemes include:
 * [percent identity](https://github.com/wrf/pdbcolor#percent-identity) calculated directly from the alignment
+* [gene structure](https://github.com/wrf/pdbcolor#gene-structure), based on CDS features from a [GFF file](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)
 * [RAxML sitewise likelihoods](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), based on relative substitution probabilities between multiple fixed phylogenetic trees
 * [phylobayes sitewise likelihoods](https://github.com/wrf/pdbcolor#phylobayes-site-wise-likelihood), as above for RAxML, but using the program [phylobayes](https://github.com/bayesiancook/pbmpi)
 * [heteropecilly calculations](https://github.com/wrf/pdbcolor#heteropecilly), based on calculations of lineage-specific amino acid substitutions from [Simion et al 2017](https://github.com/psimion/SuppData_Metazoa_2017)
@@ -65,7 +66,7 @@ Thus, when `f(i,a)` is 1, the first term reduces to `ln( 1 / q(a) )` and the sec
 ### Instructions for multiple proteins ###
 For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
 
-The instructions above are used, but instead multiple alignments and sequence names are given for the `-a` and `-s` options in step 2. Here an [alignment](https://bitbucket.org/molpalmuc/sponge-oxygen) is used from [Mills et al 2018](https://elifesciences.org/articles/31176) to plot site identity information onto the [structure of the heterodimer](http://www.rcsb.org/structure/4ZPR) of two mouse helix-loop-helix transcription factors, [HIF1A](http://www.uniprot.org/uniprot/Q61221) and [ARNT](http://www.uniprot.org/uniprot/P53762). The same alignment may be given multiple times as long as the sequences are found, otherwise several different alignments could be used, say for protein subfamilies or individual clades.
+The instructions above are used, but instead multiple alignments and sequence names are given for the `-a` and `-s` options in step 2. Here an [alignment](https://bitbucket.org/molpalmuc/sponge-oxygen) is used from [Mills et al 2018](https://doi.org/10.7554/eLife.31176) to plot site identity information onto the [structure of the heterodimer](http://www.rcsb.org/structure/4ZPR) of two mouse helix-loop-helix transcription factors, [HIF1A](http://www.uniprot.org/uniprot/Q61221) and [ARNT](http://www.uniprot.org/uniprot/P53762). The same alignment may be given multiple times as long as the sequences are found, otherwise several different alignments could be used, say for protein subfamilies or individual clades.
 
 `pdb_site_identity.py -a all_hif1.aln all_hif1.aln -s HIF1A_MOUSE ARNT_MOUSE -p 4zpr.pdb > 4zpr_w_id.pdb`
 
@@ -78,6 +79,21 @@ In the PyMOL console, run `color_by_identity.py` script. Then, up to 4 different
 Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization.
 
 ![4zpr_w_id.png](https://github.com/wrf/pdbcolor/blob/master/examples/4zpr_w_id.png)
+
+## Gene structure ##
+For multidomain proteins, it may be useful to view the protein structure with information from the gene structure, i.e. introns and exons. This may display whether a domain is composed of a single exon and how it may join with other parts of the protein. **Note: this assumes that the annotation in the GFF file is complete and accurate, as the first codon in the CDS is assumed to be residue 1.**
+
+For example, using the data from the [recently published genome](https://github.com/photocyte/PPYR_OGS) of the firefly *Photinus pyralis*, the exons for gene `PPYR_00001`, which is the luciferase Luc1.
+
+1) `gff_cds_to_pymol_script.py -g ppyr_00001.gff -i PPYR_00001-PA > color_ppyr_00001_5dv9.pml`
+
+The `.pml` script is the standard output, and can be run in the PyMOL console using:
+
+2) `@color_ppyr_00001_5dv9.pml`
+
+![ppyr_00001_5dv9_w_label.png](https://github.com/wrf/pdbcolor/blob/master/examples/ppyr_00001_5dv9_w_label.png)
+
+In the example of [firefly luciferase 5DV9](https://www.rcsb.org/structure/5dv9), the entire protein is divided into two domains, the large AMP-binding domain (blue, green and pink, exons 1-5), and the C-terminal domain (red and orange, exons 6-7). Dark grey residues indicate that the residue is split across two exons (also shown by the grey diamonds on the legend), which is evident from the phase in the GFF file. This also shows that while most exons of the first domain are out of phase, exon 5 ends with a multiple of three bases, then cleanly joins the next domain.
 
 ## RAxML site-wise likelihood ##
 For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between the top two topologies (out of 3) can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a string of numbers (0-8) where the dlnL refers to the max minus the median and favors whichever topology had the maximum likelihood. Likewise, constants are coded as `x`. This also permits each value to be coded as a single character (for display as a fasta sequence).
@@ -174,17 +190,20 @@ Below is an example from [2o8b.pdb](https://www.rcsb.org/structure/2o8b), which 
 The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
 
 ### Conservation ###
-Halabi, N., Rivoire, O. et al (2009) [Protein Sectors: Evolutionary Units of Three-Dimensional Structure](http://dx.doi.org/10.1016/j.cell.2009.07.038). *Cell* 138 (4) 774-786.
-Francis, WR. et al (2017) [Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/). *PeerJ* 5 (1) e3633.
-Mills, DB., Francis, WR. et al (2018) [The last common ancestor of animals lacked the HIF pathway and respired in low-oxygen environments](https://elifesciences.org/articles/31176). *eLife* 7: e31176.
+* Halabi, N., Rivoire, O. et al (2009) [Protein Sectors: Evolutionary Units of Three-Dimensional Structure](http://dx.doi.org/10.1016/j.cell.2009.07.038). *Cell* 138 (4) 774-786.
+* Francis, WR. et al (2017) [Symplectin evolved from multiple duplications in bioluminescent squid](https://doi.org/10.7717/peerj.3633). *PeerJ* 5 (1) e3633.
+* Mills, DB., Francis, WR. et al (2018) [The last common ancestor of animals lacked the HIF pathway and respired in low-oxygen environments](https://doi.org/10.7554/eLife.31176). *eLife* 7: e31176.
+
+### Gene structure ###
+* Fallon, TR. et al (2018) [Firefly genomes illuminate parallel origins of bioluminescence in beetles](https://doi.org/10.1101/237586) *bioRxiv*
 
 ### Phylogenetics ###
-Voynova, NE. et al (2008) [Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/). *Archives of Biochemistry and Biophysics* 480 (1) 58-67.
-Shen, X. et al (2017) [Contentious relationships in phylogenomic studies can be driven by a handful of genes](https://www.nature.com/articles/s41559-017-0126). *Nature Ecology & Evolution* 1 1-10.
-Wild, R. et al (2018) [Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545). *Science* 550: 1-12.
+* Voynova, NE. et al (2008) [Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/). *Archives of Biochemistry and Biophysics* 480 (1) 58-67.
+* Shen, X. et al (2017) [Contentious relationships in phylogenomic studies can be driven by a handful of genes](https://www.nature.com/articles/s41559-017-0126). *Nature Ecology & Evolution* 1 1-10.
+* Wild, R. et al (2018) [Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545). *Science* 550: 1-12.
 
 ### Heteropecilly ###
-Warren, JJ. et al (2007) [Structure of the human MutSalpha DNA lesion recognition complex](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815). *Molecular Cell* 26 (4) 579-592.
-Roure, B. and H. Philippe (2011) [Site-specific time heterogeneity of the substitution process and its impact on phylogenetic inference](http://www.ncbi.nlm.nih.gov/pubmed/21235782). *BMC Evolutionary Biology* 11:17.
-Simion, P. et al (2017) [A Large and Consistent Phylogenomic Dataset Supports Sponges as the Sister Group to All Other Animals](http://www.sciencedirect.com/science/article/pii/S0960982217301999). *Current Biology* 27 (7) 958-967.
+* Warren, JJ. et al (2007) [Structure of the human MutSalpha DNA lesion recognition complex](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815). *Molecular Cell* 26 (4) 579-592.
+* Roure, B. and H. Philippe (2011) [Site-specific time heterogeneity of the substitution process and its impact on phylogenetic inference](http://www.ncbi.nlm.nih.gov/pubmed/21235782). *BMC Evolutionary Biology* 11:17.
+* Simion, P. et al (2017) [A Large and Consistent Phylogenomic Dataset Supports Sponges as the Sister Group to All Other Animals](http://www.sciencedirect.com/science/article/pii/S0960982217301999). *Current Biology* 27 (7) 958-967.
 
