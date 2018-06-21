@@ -7,6 +7,7 @@ Existing schemes include:
 * [RAxML sitewise likelihoods](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), based on relative substitution probabilities between multiple fixed phylogenetic trees
 * [phylobayes sitewise likelihoods](https://github.com/wrf/pdbcolor#phylobayes-site-wise-likelihood), as above for RAxML, but using the program [phylobayes](https://github.com/bayesiancook/pbmpi)
 * [heteropecilly calculations](https://github.com/wrf/pdbcolor#heteropecilly), based on calculations of lineage-specific amino acid substitutions from [Simion et al 2017](https://github.com/psimion/SuppData_Metazoa_2017)
+* [statistical coupling analysis from Halabi 2009](https://github.com/wrf/pdbcolor/tree/master/sca), based on the binary approximation of co-evolving residues
 
 For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
