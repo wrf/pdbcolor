@@ -10,7 +10,9 @@ Scripts to recreate most analyses and figures from [Halabi, Rivoire et al 2009](
 * coloring the same divergence plot with eigenvectors 2 and 4, as done in the original work, generating the figure `.D_bin_colored.pdf`.
 * printing a table of eigenvectors, as `.vec_by_site.tab`
 
-A similar approach is used by [Hopf et al 2012](https://doi.org/10.1016/j.cell.2012.04.012), whereby the find similar sectors in the heatmap. However, they interpret these differently, suggesting that these sectors may more generally involve other structural configurations, like dimerization interfaces or alternate conformations (e.g. open vs. closed).
+A similar approach is used by [Hopf et al 2012](https://doi.org/10.1016/j.cell.2012.04.012), whereby the find similar sectors in the heatmap. However, they interpret these sectors differently, suggesting that the correlations may more generally involve other structural configurations, like dimerization interfaces or alternate conformations (e.g. open vs. closed).
+
+Below is a test example using [firefly luciferase 5DV9](https://www.rcsb.org/structure/5dv9). The "blue" sector is apparent, containing active site, but the corrections of most of the sites are weak, as is the case for "green" and "red". This could be due to several factors, firstly being the size of the protein, >500AAs vs <200 for those in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). One [study of *de novo* structure prediction from covarying residues in multiple sequence alignments](https://doi.org/10.1073/pnas.1314045110) had given a guideline that the number of sequences should be five-fold more than the length, meaning 2500 sequences in this case. As only 800 were used, this may not be sufficient to determine covariation.
 
 ![5dv9_w_sectors.png](https://github.com/wrf/pdbcolor/blob/master/sca/5dv9_w_sectors.png)
 
