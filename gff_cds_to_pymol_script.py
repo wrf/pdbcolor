@@ -33,11 +33,11 @@ def make_output_script(cds_to_residues, out_of_phase_list, chain, wayout):
 	print >> wayout, "bg white"
 	print >> wayout, "show cartoon, (chain {})".format(chain)
 	for exonnum, residues in enumerate(cds_to_residues):
-		colorlist = [ str(i) for i in exon_colors[exonnum+1] ]
+		colorlist = map(str, exon_colors[exonnum+1])
 		print >> wayout, "set_color excolor_{}, [{}]".format( exonnum+1, ",".join(colorlist) )
 		print >> wayout, "select exon_{}, (resi {}) & (chain {})".format( exonnum+1, ",".join(residues), chain )
 		print >> wayout, "color excolor_{}, exon_{}".format( exonnum+1, exonnum+1 ) 
-	outofphase_col_str = [ str(i) for i in outofphase_color ]
+	outofphase_col_str = map(str, outofphase_color)
 	print >> wayout, "set_color outphase, [{}]".format( ",".join(outofphase_col_str) )
 	print >> wayout, "select out_of_phase, (resi {}) & (chain {})".format( ",".join(out_of_phase_list), chain )
 	print >> wayout, "color outphase, out_of_phase"
@@ -94,7 +94,7 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 		firstresidue = residuecounter + 1
 		residuecounter = (basecounter // 3) # add all integer residues
 		# +1 for range, as last number is not included
-		residue_strings = [str(i) for i in range(firstresidue,residuecounter+1)]
+		residue_strings = map(str, range(firstresidue,residuecounter+1))
 		cds_list.append(residue_strings)
 		# if this exon is phase 1 or 2
 		# and does not get back in phase from previous exons

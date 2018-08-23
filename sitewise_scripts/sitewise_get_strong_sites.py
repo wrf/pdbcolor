@@ -2,7 +2,7 @@
 #
 # sitewise_get_strong_sites.py  created 2018-02-01
 
-'''sitewise_get_strong_sites.py  last modified 2018-03-15
+'''sitewise_get_strong_sites.py  last modified 2018-06-06
     subset a supermatrix using only strong-sites identified by site-wise RAxML
 
 sitewise_get_strong_sites.py -a matrix1.aln -l RAxML_perSiteLLs.matrix1.tab -o strong_alignment.aln
@@ -58,11 +58,10 @@ def make_strong_alignment(fullalignment, alignformat, valsbysite, mindlnl, makew
 		print >> sys.stderr, "# New alignment contains {} strong sites".format( strongcounter )
 	return newalign
 
-def read_tabular_ln(lntabular, treelist):
+def read_tabular_ln(lntabular):
 	'''read tabular log-likelihood results and return a dict where keys are position and value is abs dlnL'''
 	lndict = {}
 	linecounter = 0
-	print >> sys.stderr, "# Using columns {} and {} for topologies".format(*treelist)
 	print >> sys.stderr, "# Reading log-likelihood by site from {}".format(lntabular), time.asctime()
 	for line in open(lntabular,'r'):
 		line = line.strip()
@@ -87,12 +86,10 @@ def main(argv, wayout):
 	parser.add_argument('-l','--log-likelihood', help="tabular log-likelihood data file from RAxML")
 	parser.add_argument('-m','--dlnl-minimum', default=0.5, type=float, help="minimum difference in lnL [0.5]")
 	parser.add_argument('-o','--output', help="name of output file", required=True)
-	parser.add_argument('-t','--trees', default="1,2", help="two columns of trees 1 and 2, as comma-separated ints [1,2]")
 	parser.add_argument('-w','--weak', action="store_true", help="get weak sites, meaning exclude strong sites")
 	args = parser.parse_args(argv)
 
-	treelist = [int(i) for i in args.trees.split(",")]
-	valsbysite = read_tabular_ln(args.log_likelihood, treelist)
+	valsbysite = read_tabular_ln(args.log_likelihood)
 	strongalignment = make_strong_alignment(args.alignment, args.format, valsbysite, args.dlnl_minimum, args.weak)
 	AlignIO.write(strongalignment, args.output, args.format)
 	print >> sys.stderr, "# New alignment written to {}".format(args.output), time.asctime()
