@@ -9,7 +9,7 @@ Existing schemes include:
 * [heteropecilly calculations](https://github.com/wrf/pdbcolor#heteropecilly), based on calculations of lineage-specific amino acid substitutions from [Simion et al 2017](https://github.com/psimion/SuppData_Metazoa_2017)
 * [statistical coupling analysis from Halabi 2009](https://github.com/wrf/pdbcolor/tree/master/sca), based on the binary approximation of co-evolving residues
 
-For all cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
+For most cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
@@ -115,7 +115,7 @@ The workflow is meant to begin from a supermatrix, meaning a lot of other data n
 
     `sitewise_recode_constant_sites.py -a simion2017_97sp_401632pos_1719genes.fasta -l RAxML_perSiteLLs.simion2017_fullset.tab > RAxML_perSiteLLs.simion2017_fullset_const_recoded.tab`
 
-3) Split the supermatrix into taxa [with this script](https://github.com/wrf/supermatrix/blob/master/split_supermatrix_to_taxa.py), where a fasta file is generated for each taxon and each protein gets a unique name based on the partition.
+3) Split the supermatrix into taxa [with this script](https://github.com/wrf/supermatrix/blob/master/split_supermatrix_to_taxa.py), where a fasta file is generated for each taxon and each protein gets a unique name based on the partition. Any gaps will need to be removed from the split alignments.
 
     `split_supermatrix_to_taxa.py -a simion2017_97sp_401632pos_1719genes.fasta.gz -p simion2017_partitions.txt -d simion2017_taxa`
 
@@ -142,7 +142,7 @@ For some cases where the `DBREF` field and the sequence name do not match, perha
 
 `pdb_log_likelihood.py -a examples/59546-59840-MVD1_HUMAN.aln -s MVD1_HUMAN -p 3d4j.pdb --force-recode > 3d4j_w_lnl.pdb`
 
-![3d4j_w_lnl.png](https://github.com/wrf/pdbcolor/blob/master/examples/3d4j_w_lnl.png)
+![3d4j_w_lnl_w_labels.png](https://github.com/wrf/pdbcolor/blob/master/examples/3d4j_w_lnl_w_labels.png)
 
 This protein is called diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://www.uniprot.org/uniprot/P53602)) in humans. The protein is a homodimer (see [Voynova et al 2008 Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/)), and two pori-sis-favoring residues (teal) can be seen involved in the dimerization interface of the two C-terminal domains. Rather unusually, these two residues (S275 and W282) are F and R, respectively, in most opisthokonts and many sponges, suggesting that sponges retained the ancestral state for these residues, which is why pori-sis is the favored topology. Potentially, the R guanidinium can interact with the pi-electron cloud of F, and may still support dimerization. The constant region (orange, with sulfate bound) is the active site of the enzyme.
 
@@ -185,10 +185,10 @@ Heteropecilly color scheme can be visualized within Pymol, using the command in 
 
 Below is an example from [2o8b.pdb](https://www.rcsb.org/structure/2o8b), which is the structure of the mismatch repair protein [MSH2](http://www.uniprot.org/uniprot/P43246)/[MSH6](http://www.uniprot.org/uniprot/P52701) heterodimer (see [Warren et al 2007 Structure of the human MutSalpha DNA lesion recognition complex.](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815)). Heteropecilly scores were only calculated for MSH2, so the other protein is colored in pale gray. Gaps or missing data are dark gray, constant sites are green, and the colors follow the deciles as in the charts above. In this example, the DNA helix is colored yellow, to distinguish it from the protein. Several features are evident. Large sections of the alignment had been removed by trimming, resulting in gaps when compared to the reference protein, and dark gray regions throughout the protein (long helix connecting the "clamp" domain to the ATPase domain). Constant sites form a distinct sector at the top of the image, primarily comprising the ATPase domain, probably also involved in the interface with MSH6. Many heteropecillious sites (red) appear to occur on the surface of the protein, perhaps directly interacting with the solvent or other proteins, though the extent of this was not precisely calculated. This may mean that, in general, heteropecillious sites and lineage-specific changes are a reflection of unique interactions *between* proteins.
 
-![2o8b_w_hp.png](https://github.com/wrf/pdbcolor/blob/master/examples/2o8b_w_hp.png)
+![2o8b_w_hp_w_labels.png](https://github.com/wrf/pdbcolor/blob/master/examples/2o8b_w_hp_w_labels.png)
 
 # References #
-The colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
+The first colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
 
 ### Conservation ###
 * Halabi, N., Rivoire, O. et al (2009) [Protein Sectors: Evolutionary Units of Three-Dimensional Structure](http://dx.doi.org/10.1016/j.cell.2009.07.038). *Cell* 138 (4) 774-786.
