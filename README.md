@@ -77,9 +77,18 @@ In the PyMOL console, run `color_by_identity.py` script. Then, up to 4 different
 
 `color_by_identity(bychain=True)`
 
-Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization.
+Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization. There are more conserved residues in the HLH domain for ARNT than for HIF (8 vs 1), suggesting that despite the varied binding partners for ARNT/CYCLE/BMAL, including HIF, SIM, NPAS1/3, CLOCK, and AHR, it is likely that several of the bases that determine the binding motif are conserved across the ARNT-interacting region, and that the varied roles of these transcription factors are determined more by interactions with HIF and related proteins.
 
 ![4zpr_w_id.png](https://github.com/wrf/pdbcolor/blob/master/examples/4zpr_w_id.png)
+
+### Making a script instead of recoding the PDB ###
+Instead of directly recoding the PDB file, a PyMOL script can be generated to recolor the residues using the `-w` option.
+
+`../pdb_site_identity.py -p 4zpr.pdb -s HIF1A_MOUSE ARNT_MOUSE -a hif_sim_npas.aln arnt_only.aln -w 4zpr_hif_arnt_color_by_id.pml`
+
+This script would be run in the PyMOL console using:
+
+`@4zpr_hif_arnt_color_by_id.pml`
 
 ## Gene structure ##
 For multidomain proteins, it may be useful to view the protein structure with information from the gene structure, i.e. introns and exons. This may display whether a domain is composed of a single exon and how it may join with other parts of the protein. **Note: this assumes that the annotation in the GFF file is complete and accurate, as the first codon in the CDS is assumed to be residue 1.**

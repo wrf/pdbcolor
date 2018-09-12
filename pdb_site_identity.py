@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2018-04-02
+'''pdb_site_identity.py  last modified 2018-09-12
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -28,7 +28,7 @@ disordered or cleaved, the sequence still must start with residue 1
 import sys
 import time
 import argparse
-from collections import Counter
+from collections import Counter,defaultdict
 from numpy import log
 from Bio import AlignIO
 
@@ -134,6 +134,25 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 		identindex_dict[target_seqid] = index_to_identity
 	return identindex_dict
 
+def get_chains_only(defaultchain, seqidlist, pdbfile):
+	'''read PDB file and return a dict where key is chain and value is sequence ID'''
+	keepchains = {} # dict where key is chain and value is seqid
+	print >> sys.stderr, "# Reading chain from PDB {}".format(pdbfile)
+	for line in open(pdbfile,'r'):
+		record = line[0:6].strip()
+		# get relevant chains that match the sequence, in case of hetero multimers
+		if record=="DBREF":
+			defaultchain = False
+			proteinid = line[42:56].strip()
+			for seqid in seqidlist:
+				if seqid.find(proteinid)>-1:
+					chaintarget = line[12]
+					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					keepchains[chaintarget] = proteinid
+	if defaultchain: # meaning nothing was found, use default and single sequence
+		keepchains[defaultchain] = seqidlist[0]
+	return keepchains
+
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
@@ -196,6 +215,64 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 	else:
 		print >> sys.stderr, "# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}".format( seqid, proteinid )
 
+def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
+	'''from the identity calculations, print a script for PyMOL'''
+	colors = {} # key is colorscheme name, value is list of colors
+	colors["red"] = [ [0.63,0.63,0.63] , [0.73,0.55,0.55] , [0.75,0.47,0.47], 
+				   [0.77,0.38,0.38] , [0.79,0.29,0.29] , [0.82,0.21,0.21], 
+				   [0.84,0.13,0.13]    , [0.88,0,0]     , [1,0,0.55] ]
+	colors["green"] = [ [0.63,0.63,0.63] , [0.50,0.68,0.56] , [0.42,0.71,0.53], 
+				   [0.35,0.74,0.49] , [0.26,0.77,0.44] , [0.19,0.80,0.41], 
+				   [0.12,0.83,0.37] , [0.01,0.87,0.31] , [1,0,0.55] ]
+	colors["blue"] = [ [0.63,0.63,0.63] , [0.50,0.58,0.68] , [0.42,0.55,0.71], 
+				   [0.35,0.52,0.73] , [0.28,0.49,0.76] , [0.20,0.46,0.80], 
+				   [0.12,0.43,0.83] , [0.00,0.38,0.87] , [1,0,0.55] ]
+	colors["yellow"] = [ [0.63,0.63,0.63] , [0.66,0.67,0.51] , [0.68,0.71,0.43], 
+				   [0.70,0.73,0.36] , [0.72,0.76,0.28] , [0.74,0.80,0.20], 
+				   [0.76,0.83,0.12] , [0.79,0.87,0.00] , [1,0,0.55] ]
+	insuf_color = [0.75, 0.75, 0.58]
+
+	binvalues = [0.0, 50.0 ,60.0 ,70.0 ,80.0 ,90.0 ,95.0 ,98.0 ,100, 101]
+
+	print >> sys.stderr, "# Generating PyMOL script {}".format(colorscript)
+	# begin printing commands for PyMOL script
+	with open(colorscript, 'w') as cs:
+		print >> cs, "hide everything"
+		#print >> wayout, "bg white"
+		print >> cs, "show cartoon"
+		print >> cs, "set_color colordefault, [{}]".format( ",".join(map(str,insuf_color)) )
+		print >> cs, "color colordefault, all"
+		# make commands for each color
+		for color, colorlist in colors.iteritems():
+			for i,rgb in enumerate(colorlist):
+				colorname = "{}{}".format( color, int(binvalues[i]) )
+				print >> cs, "set_color {}, [{}]".format( colorname, ",".join(map(str,rgb)) )
+
+		# make commands for each chain
+		for chain in keepchains.iterkeys(): # keys are chain letters, values are seq IDs
+			pctgroups = defaultdict(list) # key is percent group, value is list of residues
+			# for each residue, assign to a bin
+			for residue in scoredict[keepchains[chain]].iterkeys():
+				residuescore = scoredict[keepchains[chain]].get(residue,0.00)
+				for i,value in enumerate(binvalues[:-1]):
+					upper = binvalues[i+1]
+					if residuescore < upper:
+						pctgroups[value].append(residue)
+						break
+				# should not need an else
+			# assign whole chain to lowest color, then build up
+			print >> cs, "color {}0, chain {}".format( basecolor, chain )
+			# for each bin, make a command to color all residues of that bin
+			for i,value in enumerate(binvalues[:-1]):
+				if i==0: # long lists apparently crash the program, so skip
+					continue
+				binname = "{}pct_grp_{}_{}".format( int(value), i+1, chain )
+				resilist = map(str,pctgroups[value])
+				binresidues = ",".join(resilist)
+				print >> cs, "select {}, (chain {} & resi {})".format( binname, chain, binresidues )
+				print >> cs, "color {}{}, {}".format( basecolor, int(value), binname )
+	# no return
+
 def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
@@ -206,6 +283,9 @@ def main(argv, wayout):
 	parser.add_argument("-g","--gap-cutoff", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [0.5]")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
+	parser.add_argument("-w","--write-script", help="write to script instead of recoding PDB file")
+	parser.add_argument("--base-color", default="red", help="default color gradient [red,yellow,green,blue]")
+	parser.add_argument("--default-chain", default="A", help="default letter of chain, if DBREF for the sequence cannot be found in PDB [A]")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
 	args = parser.parse_args(argv)
 
@@ -220,7 +300,11 @@ def main(argv, wayout):
 	else:
 		conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff)
 	if conservedict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode)
+		if args.write_script: # write output PyMOL script with color commands
+			refchains = get_chains_only(args.default_chain, args.sequence, args.pdb)
+			make_output_script(conservedict, refchains, args.write_script, args.base_color)
+		else: # recode PDB beta-factors
+			rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode)
 	else:
 		sys.exit("# CANNOT CALCULATE CONSERVATION, EXITING")
 
