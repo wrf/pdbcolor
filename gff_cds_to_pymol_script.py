@@ -2,9 +2,15 @@
 #
 # gff_cds_to_pymol_script.py v1 2018-06-04
 
-'''gff_cds_to_pymol_script.py  last modified 2018-06-04
+'''gff_cds_to_pymol_script.py  last modified 2018-10-11
+    script to generate a PyMOL script to color residues corresponding to exons
+    20 colors are currently available, and repeat after 20 exons
 
 gff_cds_to_pymol_script.py -g ppyr_00001.gff -i PPYR_00001-PA > ppyr_00001_color_5dv9.pml
+
+    the script detects CDS features in a GFF where the ID matches -i
+    this assumes the first codon in the CDS feature maps to residue 1
+    even if those residues from that exon are not in the structure
 
 run in PyMOL as (meaning do not use the run command):
 @ppyr_00001_color_5dv9.pml
@@ -19,21 +25,31 @@ def make_output_script(cds_to_residues, out_of_phase_list, chain, wayout):
 
 	# colors in order of:
 	# blue, green, red, orange, purple
+	# brown, teal, lilac, seagreen, yellow
 	exon_colors = { 1 :[0.65,0.81,0.89], 2 :[0.12,0.47,0.71], 
                     3 :[0.70,0.87,0.54], 4 :[0.20,0.63,0.17], 
                     5 :[0.98,0.60,0.60], 6 :[0.89,0.10,0.11], 
                     7 :[0.99,0.75,0.44], 8 :[1.00,0.50,0.00], 
-                    9 :[0.79,0.70,0.84], 10 :[0.42,0.24,0.60] }
+                    9 :[0.79,0.70,0.84], 10 :[0.42,0.24,0.60], 
+                    11 :[0.90,0.65,0.50], 12 :[0.67,0.35,0.14], 
+                    13 :[0.19,0.91,0.94], 14 :[0.00,0.72,0.75], 
+                    15 :[0.89,0.65,0.82], 16 :[0.71,0.12,0.48], 
+                    17 :[0.65,0.89,0.76], 18 :[0.12,0.71,0.45], 
+                    19 :[0.89,0.88,0.65], 20 :[0.71,0.67,0.12] }
 	# { 1:"#a6cee3", 2:"#1f78b4", 3:"#b2df8a", 4:"#33a02c", 5:"#fb9a99", 
-	# 6:"#e31a1c", 7:"#fdbf6f", 8:"#ff7f00", 9:"#cab2d6", 10:"#6a3d9a" }
+	# 6:"#e31a1c", 7:"#fdbf6f", 8:"#ff7f00", 9:"#cab2d6", 10:"#6a3d9a", 
+	# 11:"#e5a580", 12:"#aa5823", 13:"#30e7ef", 14:"#00b7c0", 15:"#e3a6d1", 
+	# 16:"#b41f7a", 17:"#a6e3c1", 18:"#1fb472", 19:"#e3e0a6", 20:"#b4ac1f" }
+
 	outofphase_color = [0.3,0.3,0.3] # dark grey
+	numcolors = len(exon_colors)
 
 	# begin printing commands for PyMOL script
 	print >> wayout, "hide everything"
 	print >> wayout, "bg white"
 	print >> wayout, "show cartoon, (chain {})".format(chain)
 	for exonnum, residues in enumerate(cds_to_residues):
-		colorlist = map(str, exon_colors[exonnum+1])
+		colorlist = map(str, exon_colors[(exonnum % numcolors)+1])
 		print >> wayout, "set_color excolor_{}, [{}]".format( exonnum+1, ",".join(colorlist) )
 		print >> wayout, "select exon_{}, (resi {}) & (chain {})".format( exonnum+1, ",".join(residues), chain )
 		print >> wayout, "color excolor_{}, exon_{}".format( exonnum+1, exonnum+1 ) 
