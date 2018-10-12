@@ -2,7 +2,7 @@
 #
 # gff_cds_to_pymol_script.py v1 2018-06-04
 
-'''gff_cds_to_pymol_script.py  last modified 2018-10-11
+'''gff_cds_to_pymol_script.py  last modified 2018-10-12
     script to generate a PyMOL script to color residues corresponding to exons
     20 colors are currently available, and repeat after 20 exons
 
@@ -12,6 +12,11 @@ gff_cds_to_pymol_script.py -g ppyr_00001.gff -i PPYR_00001-PA > ppyr_00001_color
     this assumes the first codon in the CDS feature maps to residue 1
     even if those residues from that exon are not in the structure
 
+    default chain is A, and can be changed with -c
+    for homomultimers, specify the chains as -c AB
+
+gff_cds_to_pymol_script.py -g human_IDH2.gff -i cds82740 -c AB > IDH2_color_5i96.pml
+
 run in PyMOL as (meaning do not use the run command):
 @ppyr_00001_color_5dv9.pml
 '''
@@ -20,7 +25,7 @@ import sys
 import time
 import argparse
 
-def make_output_script(cds_to_residues, out_of_phase_list, chain, wayout):
+def make_output_script(cds_to_residues, out_of_phase_list, chainset, wayout):
 	'''from the GFF information, print a script for PyMOL'''
 
 	# colors in order of:
@@ -43,21 +48,27 @@ def make_output_script(cds_to_residues, out_of_phase_list, chain, wayout):
 
 	outofphase_color = [0.3,0.3,0.3] # dark grey
 	numcolors = len(exon_colors)
+	chainstring = " or ".join( ["chain {}".format(chain) for chain in chainset] )
 
 	# begin printing commands for PyMOL script
 	print >> wayout, "hide everything"
 	print >> wayout, "bg white"
-	print >> wayout, "show cartoon, (chain {})".format(chain)
+	print >> wayout, "show cartoon, ({})".format(chainstring)
 	for exonnum, residues in enumerate(cds_to_residues):
 		colorlist = map(str, exon_colors[(exonnum % numcolors)+1])
 		print >> wayout, "set_color excolor_{}, [{}]".format( exonnum+1, ",".join(colorlist) )
-		print >> wayout, "select exon_{}, (resi {}) & (chain {})".format( exonnum+1, ",".join(residues), chain )
+		print >> wayout, "select exon_{}, (resi {}) & ({})".format( exonnum+1, "-".join( first_and_last_res(residues) ), chainstring )
 		print >> wayout, "color excolor_{}, exon_{}".format( exonnum+1, exonnum+1 ) 
 	outofphase_col_str = map(str, outofphase_color)
 	print >> wayout, "set_color outphase, [{}]".format( ",".join(outofphase_col_str) )
-	print >> wayout, "select out_of_phase, (resi {}) & (chain {})".format( ",".join(out_of_phase_list), chain )
+	print >> wayout, "select out_of_phase, (resi {}) & ({})".format( ",".join(out_of_phase_list), chainstring )
 	print >> wayout, "color outphase, out_of_phase"
 	# no return
+
+def first_and_last_res(residues):
+	'''from a list of residues, return a list of only the first and last numbers'''
+	newresidues = [ residues[0], residues[-1] ]
+	return newresidues
 
 def attributes_to_dict(attributes):
 	'''convert GFF attribute string into dictionary of key-value pairs'''
