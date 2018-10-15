@@ -2,7 +2,7 @@
 #
 # gff_cds_to_pymol_script.py v1 2018-06-04
 
-'''gff_cds_to_pymol_script.py  last modified 2018-10-12
+'''gff_cds_to_pymol_script.py  last modified 2018-10-15
     script to generate a PyMOL script to color residues corresponding to exons
     20 colors are currently available, and repeat after 20 exons
 
@@ -11,6 +11,10 @@ gff_cds_to_pymol_script.py -g ppyr_00001.gff -i PPYR_00001-PA > ppyr_00001_color
     the script detects CDS features in a GFF where the ID matches -i
     this assumes the first codon in the CDS feature maps to residue 1
     even if those residues from that exon are not in the structure
+
+    exons are automatically numbered, corresponding to the first CDS feature
+    this might not match the first exon in the gene, due to alternative splicing
+    or untranslated exons
 
     default chain is A, and can be changed with -c
     for homomultimers, specify the chains as -c AB
@@ -57,18 +61,13 @@ def make_output_script(cds_to_residues, out_of_phase_list, chainset, wayout):
 	for exonnum, residues in enumerate(cds_to_residues):
 		colorlist = map(str, exon_colors[(exonnum % numcolors)+1])
 		print >> wayout, "set_color excolor_{}, [{}]".format( exonnum+1, ",".join(colorlist) )
-		print >> wayout, "select exon_{}, (resi {}) & ({})".format( exonnum+1, "-".join( first_and_last_res(residues) ), chainstring )
+		print >> wayout, "select exon_{}, (resi {}) & ({})".format( exonnum+1, "-".join(residues), chainstring )
 		print >> wayout, "color excolor_{}, exon_{}".format( exonnum+1, exonnum+1 ) 
 	outofphase_col_str = map(str, outofphase_color)
 	print >> wayout, "set_color outphase, [{}]".format( ",".join(outofphase_col_str) )
 	print >> wayout, "select out_of_phase, (resi {}) & ({})".format( ",".join(out_of_phase_list), chainstring )
 	print >> wayout, "color outphase, out_of_phase"
 	# no return
-
-def first_and_last_res(residues):
-	'''from a list of residues, return a list of only the first and last numbers'''
-	newresidues = [ residues[0], residues[-1] ]
-	return newresidues
 
 def attributes_to_dict(attributes):
 	'''convert GFF attribute string into dictionary of key-value pairs'''
@@ -115,13 +114,15 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 	residuecounter = residue_offset
 	cds_list = [] # list, of lists of residue numbers, as strings
 	out_of_phase = [] # all residues that are out of phase, colored grey
+	# append a residue start-end pair to cds_list
 	for exonnumber in sorted(exon_lengths.keys()):
 		cdslength = exon_lengths[exonnumber]
 		basecounter += cdslength
 		firstresidue = residuecounter + 1
 		residuecounter = (basecounter // 3) # add all integer residues
-		# +1 for range, as last number is not included
-		residue_strings = map(str, range(firstresidue,residuecounter+1))
+		# make a list of the first and last residues, to become strings
+		residue_strings = map(str, [firstresidue, residuecounter] )
+		# append the 2-item-list to cds_list
 		cds_list.append(residue_strings)
 		# if this exon is phase 1 or 2
 		# and does not get back in phase from previous exons
