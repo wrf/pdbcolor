@@ -91,7 +91,17 @@ This script would be run in the PyMOL console using:
 `@4zpr_hif_arnt_color_by_id.pml`
 
 ## Gene structure ##
-For multidomain proteins, it may be useful to view the protein structure with information from the gene structure, i.e. introns and exons. This may display whether a domain is composed of a single exon and how it may join with other parts of the protein. **Note: this assumes that the annotation in the GFF file is complete and accurate, as the first codon in the CDS is assumed to be residue 1.**
+For multidomain proteins, it may be useful to view the protein structure with information from the gene structure, i.e. introns and exons. This may display whether a domain is composed of a single exon and how it may join with other parts of the protein. The script colors residues corresponding to exons, where 20 colors are currently available, and the colors repeat after 20 exons.
+
+**Note: this assumes that the annotation in the GFF file is complete and accurate, as the first codon in the CDS is assumed to be residue 1. PyMOL selections are generated for each exon, even if those residues are not present in the final structure, meaning it is possible to have a selection that includes no residues.**
+
+Selections of exons are automatically numbered in PyMOL (appearing as `exon_1`), corresponding to the first CDS feature. This might not match the actual first exon in the gene, due to alternative splicing or untranslated exons.
+
+The GFF file is specified with the option `-g`. It may be most convenient to first pull all features of a particular gene out using `grep`. For the example below, `grep` would pull out all features of `PPYR_00001`.
+
+`grep PPYR_00001 PPYR_OGS1.0.gff3 > ppyr_00001.gff`
+
+The default chain is `A`, and can be changed with `-c`. For homomultimers, specify the chains as `-c AB`. For heteromultimers, one would need to run the script twice with two different genes (`-i`).
 
 For example, using the data from the [recently published genome](https://github.com/photocyte/PPYR_OGS) of the firefly *Photinus pyralis*, the exons for gene `PPYR_00001`, which is the luciferase Luc1.
 
