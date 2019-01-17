@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2018-09-12
+'''pdb_site_identity.py  last modified 2019-01-17
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -273,6 +273,17 @@ def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
 				print >> cs, "color {}{}, {}".format( basecolor, int(value), binname )
 	# no return
 
+def print_stats(identitydict):
+	'''based on the identity scores, print a short table indicating overall conservation'''
+	for seqid,posscores in identitydict.iteritems():
+		num_sites = len(posscores.values())
+		averageid = sum(posscores.values()) * 1.0 / num_sites
+		lowestid = min(posscores.values())
+		highestid = max(posscores.values())
+		num_identities = posscores.values().count(highestid)
+		print >> sys.stderr, "{}\tlength:{}\tmean:{:.2f}\tmin:{:.1f}\tmax:{:.1f}\tN_max:{} ({:.1f}%)".format( seqid, num_sites, averageid, lowestid, highestid, num_identities, num_identities*100.0/num_sites)
+	# no return
+
 def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
@@ -287,6 +298,7 @@ def main(argv, wayout):
 	parser.add_argument("--base-color", default="red", help="default color gradient [red,yellow,green,blue]")
 	parser.add_argument("--default-chain", default="A", help="default letter of chain, if DBREF for the sequence cannot be found in PDB [A]")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
+	parser.add_argument("--stats", action="store_true", help="print basic stats")
 	args = parser.parse_args(argv)
 
 	if len(args.alignment) != len(args.sequence):
@@ -295,10 +307,17 @@ def main(argv, wayout):
 	if len(args.sequence) > len(set(args.sequence)):
 		print >> sys.stderr, "ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s"
 
+	# calculate identity or conservation
 	if args.conservation:
 		conservedict = get_conservation( args.alignment, args.format, args.sequence)
 	else:
 		conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff)
+
+	# print stats
+	if args.stats:
+		print_stats(conservedict)
+
+	# rewrite PDB file or make PyMOL script
 	if conservedict: # indicating that the sequence was found and something was calculated
 		if args.write_script: # write output PyMOL script with color commands
 			refchains = get_chains_only(args.default_chain, args.sequence, args.pdb)
