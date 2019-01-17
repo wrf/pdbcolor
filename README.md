@@ -1,5 +1,5 @@
 # pdbcolor
-Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed.
+Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed. Currently, these scripts only support `.pdb` format, and **NOT** `.cif` format. I will probably implement this in the future.
 
 Existing schemes include:
 * [percent identity](https://github.com/wrf/pdbcolor#percent-identity) calculated directly from the alignment
@@ -20,6 +20,8 @@ Each script identifies the residue number (here alanine is the 11th residue of t
 Running the scripts within PyMOL recolors all atoms, though the color of any of these can be manually changed afterwards, perhaps to highlight ligands or specific domains.
 
 **Note: the temperature factors are a measure of the confidence of the position of each atom. Higher temperature would mean less confident (typical for surface residues or side-chains). Thus, if a residue is highly conserved (such as those highlighted by the scripts below), it is advisable to also check the temperature factors prior to recoding, such as using the PyMOL command** `spectrum b`.
+
+For [pdb_site_identity.py](https://github.com/wrf/pdbcolor/blob/master/pdb_site_identity.py) and [gff_cds_to_pymol_script.py](https://github.com/wrf/pdbcolor/blob/master/gff_cds_to_pymol_script.py), a [PyMOL script can be generated](https://github.com/wrf/pdbcolor#making-a-script-instead-of-recoding-the-pdb), which is a text file of PyMOL commands (see [here](https://github.com/wrf/pdbcolor/blob/master/examples/ppyr_00001_color_5dv9.pml) for an example). This will recolor the residues when run in PyMOL, and might be easier to share with collaborators if the PDB files are large.
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 

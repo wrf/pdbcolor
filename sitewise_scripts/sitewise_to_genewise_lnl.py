@@ -49,12 +49,13 @@ def sum_sites_by_gene(lntabular, partitions, wayout):
 		if line: # ignore blank lines
 			linecounter += 1
 			lsplits = line.split('\t')
-			if linecounter < 2:
+			if linecounter < 2: # assume there is a header in sitewise lnL, so make new header line
 				numtrees = len(lsplits)-1
-				for part in partitions:
+				for part in partitions: # make matrix of zeroes for each part
 					genesums[part] = [0.0] * numtrees
 				print >> wayout, line
 				continue
+			# for all other lines, get the likelihoods
 			pos = int(lsplits[0]) # sites begin at 1
 			targetpart = sitetopart[pos]
 			for i,swl in enumerate(lsplits[1:]):
