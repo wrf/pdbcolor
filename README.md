@@ -5,12 +5,29 @@ Existing schemes include:
 * [generic data](https://github.com/wrf/pdbcolor#generic-data) for each residue read from a tabular file or csv
 * [percent identity](https://github.com/wrf/pdbcolor#percent-identity) calculated directly from the alignment
 * [gene structure](https://github.com/wrf/pdbcolor#gene-structure), based on CDS features from a [GFF file](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)
+
+More specialized scripts include:
 * [RAxML sitewise likelihoods](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), based on relative substitution probabilities between multiple fixed phylogenetic trees
 * [phylobayes sitewise likelihoods](https://github.com/wrf/pdbcolor#phylobayes-site-wise-likelihood), as above for RAxML, but using the program [phylobayes](https://github.com/bayesiancook/pbmpi)
 * [heteropecilly calculations](https://github.com/wrf/pdbcolor#heteropecilly), based on calculations of lineage-specific amino acid substitutions from [Simion et al 2017](https://github.com/psimion/SuppData_Metazoa_2017)
 * [statistical coupling analysis from Halabi 2009](https://github.com/wrf/pdbcolor/tree/master/sca), based on the binary approximation of co-evolving residues
 
-For most cases, the scripts work by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
+## General usage on PDB files ##
+### Making a PyMOL script ###
+There are two practical ways of automatically coloring a structure in PyMOL. One is to process the structure and sequence and generate a script that can be run in PyMOL, which would include the color definitions and selection commands. These commands are exactly the same as those that would be typed into the PyMOL console. For example:
+
+```
+show cartoon
+set_color colordefault, [0.75,0.75,0.58]
+color colordefault, all
+```
+
+This is the standard option for [pdb_color_generic.py](https://github.com/wrf/pdbcolor/blob/master/pdb_color_generic.py) and [gff_cds_to_pymol_script.py](https://github.com/wrf/pdbcolor/blob/master/gff_cds_to_pymol_script.py). This type of output also can be generated for [pdb_site_identity.py](https://github.com/wrf/pdbcolor/blob/master/pdb_site_identity.py). This will recolor the residues when run in PyMOL, and might be easier to share with collaborators if the PDB files are large. The script is then run in PyMOL by typing:
+
+`@/path/to/your/folder/name_of_your_script`
+
+### Recoding the PDB file ###
+The other strategy will color residues by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
@@ -22,10 +39,12 @@ Running the scripts within PyMOL recolors all atoms, though the color of any of 
 
 **Note: the temperature factors are a measure of the confidence of the position of each atom. Higher temperature would mean less confident (typical for surface residues or side-chains). Thus, if a residue is highly conserved (such as those highlighted by the scripts below), it is advisable to also check the temperature factors prior to recoding, such as using the PyMOL command** `spectrum b`.
 
-For [pdb_site_identity.py](https://github.com/wrf/pdbcolor/blob/master/pdb_site_identity.py) and [gff_cds_to_pymol_script.py](https://github.com/wrf/pdbcolor/blob/master/gff_cds_to_pymol_script.py), a [PyMOL script can be generated](https://github.com/wrf/pdbcolor#making-a-script-instead-of-recoding-the-pdb), which is a text file of PyMOL commands (see [here](https://github.com/wrf/pdbcolor/blob/master/examples/ppyr_00001_color_5dv9.pml) for an example). This will recolor the residues when run in PyMOL, and might be easier to share with collaborators if the PDB files are large.
-
 ## generic data ##
-Generic numerical data about each residue can be extracted from a tabular or csv file using the `pdb_color_generic.py` script. Provided that the PDB file only has a single chain (such as from structural simulations), very little information is then needed. The script will extract data from a desired column, generate an appropriate range, and print the PyMOL commands as a script to standard output. For example, here I use the dN/dS data of [histamine receptor H1](https://github.com/clauswilke/proteinER), by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2).
+Generic numerical data about each residue can be extracted from a tabular or csv file using the `pdb_color_generic.py` script. Provided that the PDB file only has a single chain (such as from structural simulations), very little information is then needed. The script will extract data from a desired column, generate an appropriate range, and print the PyMOL commands as a script to standard output. Eight color schemes are currently implemented (change with option `-l`), 4 varying from gray to color (for sequential intensity) and 4 are diverging to emphasize very high or low scores, for display on either white or black backgrounds. I normally view proteins on black background, but journals often require white background for figures.
+
+![generic_color_schemes_v1.png](https://github.com/wrf/pdbcolor/blob/master/svg/generic_color_schemes_v1.png)
+
+For example, here I use the dN/dS data of [histamine receptor H1 3RZE](https://www.rcsb.org/structure/3rze), from the reanalysis by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2). Their csv file contains many parameters, here only four are extracted to match up with the PDB file [provided in their supplemental data](https://github.com/clauswilke/proteinER).
 
 ```
 pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l blue -g dnds --exclude-first-group > 3rze.color_by_dnds.pml 
@@ -34,7 +53,10 @@ pdb_color_generic.py -c 12 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l gr
 pdb_color_generic.py -c 13 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l div1b -g wcn > 3rze.color_by_wcn.pml 
 ```
 
-![generic_color_schemes_v1.png](https://github.com/wrf/pdbcolor/blob/master/svg/generic_color_schemes_v1.png)
+### Usage considerations ###
+PyMOL appears to have trouble running commands with very long lists of residues. For cases where most of the values are 0 (or otherwise uninteresting) such as dN/dS or sitewise identity, only a few residues need to be highlighted. The lowest group can be omitted using the flag `--exclude-first-group`. 
+
+Because scores are always processed from lowest to highest, for cases where all values are negative, the color schemes can be reversed with the flag `--reverse-colors`.
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). The same sequential color schemes as generic can be used as well: red, yellow, blue, and green.
