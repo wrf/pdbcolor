@@ -2,6 +2,7 @@
 Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed. Currently, these scripts only support `.pdb` format, and **NOT** `.cif` format. I will probably implement this in the future.
 
 Existing schemes include:
+* [generic data](https://github.com/wrf/pdbcolor#generic-data) for each residue read from a tabular file or csv
 * [percent identity](https://github.com/wrf/pdbcolor#percent-identity) calculated directly from the alignment
 * [gene structure](https://github.com/wrf/pdbcolor#gene-structure), based on CDS features from a [GFF file](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)
 * [RAxML sitewise likelihoods](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), based on relative substitution probabilities between multiple fixed phylogenetic trees
@@ -23,8 +24,20 @@ Running the scripts within PyMOL recolors all atoms, though the color of any of 
 
 For [pdb_site_identity.py](https://github.com/wrf/pdbcolor/blob/master/pdb_site_identity.py) and [gff_cds_to_pymol_script.py](https://github.com/wrf/pdbcolor/blob/master/gff_cds_to_pymol_script.py), a [PyMOL script can be generated](https://github.com/wrf/pdbcolor#making-a-script-instead-of-recoding-the-pdb), which is a text file of PyMOL commands (see [here](https://github.com/wrf/pdbcolor/blob/master/examples/ppyr_00001_color_5dv9.pml) for an example). This will recolor the residues when run in PyMOL, and might be easier to share with collaborators if the PDB files are large.
 
+## generic data ##
+Generic numerical data about each residue can be extracted from a tabular or csv file using the `pdb_color_generic.py` script. Provided that the PDB file only has a single chain (such as from structural simulations), very little information is then needed. The script will extract data from a desired column, generate an appropriate range, and print the PyMOL commands as a script to standard output. For example, here I use the dN/dS data of [histamine receptor H1](https://github.com/clauswilke/proteinER), by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2).
+
+```
+pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l blue -g dnds --exclude-first-group > 3rze.color_by_dnds.pml 
+pdb_color_generic.py -c 5 -d , -p 3rze.pdb  -i 3rze.map.rates_features.csv -l div2b -g lrt > 3rze.color_by_lrt.pml 
+pdb_color_generic.py -c 12 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l green -g rsa > 3rze.color_by_rsa.pml
+pdb_color_generic.py -c 13 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l div1b -g wcn > 3rze.color_by_wcn.pml 
+```
+
+![generic_color_schemes_v1.png](https://github.com/wrf/pdbcolor/blob/master/svg/generic_color_schemes_v1.png)
+
 ## percent identity ##
-For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). 
+For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). The same sequential color schemes as generic can be used as well: red, yellow, blue, and green.
 
 ![percent_identity_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/percent_identity_color_scheme.png)
 
@@ -79,7 +92,7 @@ In the PyMOL console, run `color_by_identity.py` script. Then, up to 4 different
 
 `color_by_identity(bychain=True)`
 
-Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization. There are more conserved residues in the HLH domain for ARNT than for HIF (8 vs 1), suggesting that despite the varied binding partners for ARNT/CYCLE/BMAL, including HIF, SIM, NPAS1/3, CLOCK, and AHR, it is likely that several of the bases that determine the binding motif are conserved across the ARNT-interacting region, and that the varied roles of these transcription factors are determined more by interactions with HIF and related proteins.
+Here the two proteins ARNT and HIF1a are colored red and green, respectively. Two conserved arginines (R102 and R30) are found interacting with the DNA helix, and two conserved leucines (L112 and L40) point to each other, possibly needed for the dimerization. There are more conserved residues in the HLH domain for ARNT than for HIF (8 vs 1), suggesting that despite the varied binding partners for ARNT/CYCLE/BMAL, including HIF, SIM, NPAS1/3, CLOCK, and AHR, it is likely that several of the residues that determine the binding motif are conserved across the ARNT-interacting region, and that the varied roles of these transcription factors are determined more by interactions with HIF and related proteins.
 
 ![4zpr_w_id.png](https://github.com/wrf/pdbcolor/blob/master/examples/4zpr_w_id.png)
 
@@ -155,7 +168,7 @@ For example, in the analysis by [Shen et al 2017](https://www.nature.com/article
 
 `~/git/pdbcolor/pdb_log_likelihood.py -a examples/26999-27593-STT3B_HUMAN.aln -p STT3B_HUMAN_mod_from_6ezn.pdb -s STT3B_HUMAN > STT3B_HUMAN_mod_from_6ezn_w_lnl.pdb`
 
-![STT3b_HUMAN_mod_from_6ezn_w_lnl.png](https://github.com/wrf/pdbcolor/blob/master/examples/STT3b_HUMAN_mod_from_6ezn_w_lnl.png)
+![STT3b_HUMAN_mod_from_6ezn_w_lnl_label.png](https://github.com/wrf/pdbcolor/blob/master/examples/STT3b_HUMAN_mod_from_6ezn_w_lnl_label.png)
 
 The complex overall is membrane bound in the ER, where a large bundle of helices sits within the membrane. Above this (in the lumen of the ER) lies the active site, containing a block of seven constant residues (W604-Q610) and no strong sites. The only porifera-sister-favoring residue is L152, which is L or another aliphatic residue in most taxa and distant outgroups, and G/S/T in ctenophores and choanoflagellates. In yeast, this residue is in proximity to an aromatic cluster on WBP1/OSTD ([Ost48 in human](http://www.uniprot.org/uniprot/P39656)), potentially involved in hydrophobic packing. Two strong residues are found on a helix adjacent to OST2 ([Dad1 in human](http://www.uniprot.org/uniprot/P61803)) in yeast, S240 and C251. C251 points towards a relatively large cavity at the "back" of the complex. S240 is also S in most species, but A in ctenophores and most outgroups. Seven strong residues are found in a poorly-modeled region that sits between OST2 and OST3 ([Tusc3](http://www.uniprot.org/uniprot/Q13454)), where it was suggested that this region could interact directly with the translocon. One helix contains three alanines on the same face of one helix, where they are leucine, glycine, and an aliphatic residue in ctenophores and most outgroups, and alanines in most other species. Four strong residues are found within the lumenal domain of STT3b, including F702 (Y in ctenophores and outgroups), G708 (A in ctenophores and outgroups), L712 (M in most ctenophores and outgroups) and A744 (V in all sponges, S/T in ctenophores).
 
@@ -210,6 +223,9 @@ Below is an example from [2o8b.pdb](https://www.rcsb.org/structure/2o8b), which 
 
 # References #
 The first colorization script was modified from the `consurf_new.py` script from the [ConSurf Server](http://consurf.tau.ac.il/2016/), by [Ashkenazy et al 2016](https://academic.oup.com/nar/article/44/W1/W344/2499373)
+
+### dN-dS ###
+* Sydykova, DK, et al (2018) [Measuring evolutionary rates of proteins in a structural context](https://doi.org/10.12688/f1000research.12874.2) F1000Research 2018, 6:1845.
 
 ### Conservation ###
 * Halabi, N., Rivoire, O. et al (2009) [Protein Sectors: Evolutionary Units of Three-Dimensional Structure](http://dx.doi.org/10.1016/j.cell.2009.07.038). *Cell* 138 (4) 774-786.
