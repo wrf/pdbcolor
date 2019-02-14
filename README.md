@@ -89,7 +89,7 @@ These values range from 0 to 100%, but are grouped into 9 bins. The colors are m
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
 
 ### Conservation ###
-An alternate measure of conservation can also be calculated using the option `-c`, based on the equations used in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). There, conservation is calculated as the sitewise frequency of amino acid *a* at position *i* over the global frequency of that amino acid. This is calculated as follows:
+An alternate measure of conservation can also be calculated using the option `--ct-conservation`, based on the equations used in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). There, conservation is calculated as the sitewise frequency of amino acid *a* at position *i* over the global frequency of that amino acid. This is calculated as follows:
 
 ```
 conservation = f(i,a) * ln( f(i,a)/q(a) ) + ( 1 - f(i,a) ) * ln ( (1-f(i,a)) / (1-q(a)) )
@@ -99,7 +99,7 @@ q(a) is background frequency of amino acid 'a' in all proteins in the alignment
 
 Thus, when `f(i,a)` is 1, the first term reduces to `ln( 1 / q(a) )` and the second term reduces to zero, meaning the conservation score of a constant site is directly related to its overall frequency in the alignment. In effect, this means that constant sites of common amino acids are penalized, which belies their evolutionary importance over time.
 
-`pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln -c > examples/symplectin_swissmodel_01_w_cons.pdb`
+`pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln --ct-conservation > examples/symplectin_swissmodel_01_w_cons.pdb`
 
 ### Instructions for multiple proteins ###
 For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
@@ -119,7 +119,7 @@ Here the two proteins ARNT and HIF1a are colored red and green, respectively. Tw
 ![4zpr_w_id.png](https://github.com/wrf/pdbcolor/blob/master/examples/4zpr_w_id.png)
 
 ### Making a script instead of recoding the PDB ###
-Instead of directly recoding the PDB file, a PyMOL script can be generated to recolor the residues using the `-w` option.
+Instead of directly recoding the PDB file, a PyMOL script can be generated to recolor the residues using the `-w` option, where `-w` is the file name of the output script.
 
 `../pdb_site_identity.py -p 4zpr.pdb -s HIF1A_MOUSE ARNT_MOUSE -a hif_sim_npas.aln arnt_only.aln -w 4zpr_hif_arnt_color_by_id.pml`
 

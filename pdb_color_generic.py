@@ -2,7 +2,7 @@
 #
 # pdb_color_generic.py v1 2019-01-21
 
-'''pdb_color_generic.py  last modified 2019-01-21
+'''pdb_color_generic.py  last modified 2019-02-14
     generate a script to color a PDB file based on generic tabular data
     REQUIRES numpy for arange
 
@@ -252,7 +252,7 @@ def main(argv, wayout):
 	parser.add_argument("-l","--base-color", default="red", help="color gradient, default is red, options are: [red,yellow,blue,green,div1w,div1b,div2w,div2b]")
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB, give multiple names if data is available in the input file")
-	parser.add_argument("--default-chain", default="A", help="default letter of chain, if DBREF for the sequence cannot be found in PDB [A]")
+	parser.add_argument("--default-chain", default="A", help="default letter of chain [A], if DBREF for the sequence cannot be found in PDB")
 	parser.add_argument("--exclude-first-group", action="store_true", help="exclude lowest score group, for cases where there are a large number of score-0 residues")
 	parser.add_argument("--exclude-middle-group", action="store_true", help="exclude middle score group for diverging-type datasets")
 	parser.add_argument("--reverse-colors", action="store_true", help="if used, reverse colors for negative-value datasets")

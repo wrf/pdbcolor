@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2019-01-17
+'''pdb_site_identity.py  last modified 2019-02-14
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -289,14 +289,14 @@ def main(argv, wayout):
 		argv.append('-h')
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
 	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment", required=True)
-	parser.add_argument("-c","--conservation", action="store_true", help="calculate sitewise positional conservation (CT model)")
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
-	parser.add_argument("-g","--gap-cutoff", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [0.5]")
-	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
+	parser.add_argument("-g","--gap-cutoff", metavar="FLOAT from 0.0-1.0", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [default is 0.5]")
+	parser.add_argument("-p","--pdb", metavar="FILENAME", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
-	parser.add_argument("-w","--write-script", help="write to script instead of recoding PDB file")
-	parser.add_argument("--base-color", default="red", help="default color gradient [red,yellow,green,blue]")
-	parser.add_argument("--default-chain", default="A", help="default letter of chain, if DBREF for the sequence cannot be found in PDB [A]")
+	parser.add_argument("-w","--write-script", metavar="OUTPUT-SCRIPT-NAME", help="write to script instead of recoding PDB file")
+	parser.add_argument("--base-color", default="red", help="color gradient when writing to script, default is red, options are [red,yellow,green,blue]")
+	parser.add_argument("--default-chain", default="A", help="default letter of chain when writing to script [A], if DBREF for the sequence cannot be found in PDB")
+	parser.add_argument("--ct-conservation", action="store_true", help="calculate sitewise positional conservation (CT model)")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
 	parser.add_argument("--stats", action="store_true", help="print basic stats")
 	args = parser.parse_args(argv)
@@ -308,7 +308,7 @@ def main(argv, wayout):
 		print >> sys.stderr, "ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s"
 
 	# calculate identity or conservation
-	if args.conservation:
+	if args.ct_conservation:
 		conservedict = get_conservation( args.alignment, args.format, args.sequence)
 	else:
 		conservedict = get_alignment_identity( args.alignment, args.format, args.sequence, args.gap_cutoff)
