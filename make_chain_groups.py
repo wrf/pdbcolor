@@ -57,13 +57,13 @@ def make_chain_select_commands(pdbfile, wayout):
 			chaintarget = line[21]
 			chaintracker[chaintarget] = True
 	if keepchains:
-		for chain,seqid in keepchains.iteritems():
-			print >> wayout, "select {}__{}, chain {}".format( chain, seqid, chain )
+		for chain in sorted(keepchains.keys()):
+			print >> wayout, "select {}__{}, chain {}".format( chain, keepchains[chain], chain )
 		print >> sys.stderr, "# wrote 'select' commands for {} chains".format( len(keepchains) )
 	else:
 		print >> sys.stderr, "WARNING: NO DBREF RECORDS FOUND IN {}".format(pdbfile)
 		if chaintracker:
-			print >> sys.stderr, "ATOMS WERE FOUND FOR THE FOLLOWING CHAINS:\n{}".format( ",".join( chaintracker.keys() ) )
+			print >> sys.stderr, "ATOMS WERE FOUND FOR THE FOLLOWING CHAINS:\n{}".format( ",".join( sorted(chaintracker.keys() ) ) )
 	# no return
 
 def main(argv, wayout):
