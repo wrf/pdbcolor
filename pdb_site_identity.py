@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2019-02-14
+'''pdb_site_identity.py  last modified 2019-02-27
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -26,6 +26,7 @@ disordered or cleaved, the sequence still must start with residue 1
 '''
 
 import sys
+import os
 import time
 import argparse
 from collections import Counter,defaultdict
@@ -94,6 +95,7 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 	return consindex_dict
 
 def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
+	'''read alignment from file, return a dict where key is seqid, value is a dict where keys are integers of position of the target seq in the alignment (starting from 1), and value is float of identity'''
 	identindex_dict = {} # key is target seqid, value is dict of identities
 	for alignment, target_seqid in zip(alignmentlist,targetidlist):
 		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
@@ -135,8 +137,9 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 	return identindex_dict
 
 def get_chains_only(defaultchain, seqidlist, pdbfile):
-	'''read PDB file and return a dict where key is chain and value is sequence ID'''
+	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
+	refoffsets = {} # key is chain, value is integer offset from DB seq
 	print >> sys.stderr, "# Reading chain from PDB {}".format(pdbfile)
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
@@ -147,17 +150,23 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 			for seqid in seqidlist:
 				if seqid.find(proteinid)>-1:
 					chaintarget = line[12]
-					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					chainstart = int(line[14:18].strip())
+					dbstart = int(line[55:60].strip())
+					chainoffset = dbstart - chainstart
+					print >> sys.stderr, "### keeping chain {} for sequence {} with offset {}".format( chaintarget, proteinid, chainoffset )
 					keepchains[chaintarget] = proteinid
+					refoffsets[chaintarget] = chainoffset
 	if defaultchain: # meaning nothing was found, use default and single sequence
 		keepchains[defaultchain] = seqidlist[0]
-	return keepchains
+		refoffsets[defaultchain] = 0
+	return keepchains, refoffsets
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
 	atomcounter = 0
 	residuecounter = {}
 	keepchains = {} # dict where key is chain and value is seqid
+	refoffsets = {} # key is chain, value is integer offset from DB seq
 	defaultchain = True # flag for whether DBREF occurs at all
 	for line in open(pdbfile,'r'):
 		# records include:
@@ -190,18 +199,26 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 			for seqid in seqidlist:
 				if seqid.find(proteinid)>-1:
 					chaintarget = line[12]
-					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					chainstart = int(line[14:18].strip())
+					dbstart = int(line[55:60].strip())
+					chainoffset = dbstart - chainstart
+					print >> sys.stderr, "### keeping chain {} for sequence {} with offset {}".format( chaintarget, proteinid, chainoffset )
 					keepchains[chaintarget] = proteinid
+					refoffsets[chaintarget] = chainoffset
 		# DBREF lines should come before ATOM lines, so for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
 			chain = line[21]
 			residue = int( line[22:26] )
+			chainoffset = refoffsets.get(chain,0)
+			if residue < 1:
+				print >> sys.stderr, "# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)".format(residue)
+				continue
 			if defaultchain or forcerecode or chain in keepchains: # default chain means take all, or use chain A
 				atomcounter += 1
 				if defaultchain or forcerecode: # assume only one seqid
-					residuescore = scoredict[seqidlist[0]].get(residue,0.00)
+					residuescore = scoredict[seqidlist[0]].get(residue+chainoffset,0.00)
 				else:
-					residuescore = scoredict[keepchains[chain]].get(residue,0.00)
+					residuescore = scoredict[keepchains[chain]].get(residue+chainoffset,0.00)
 				if residuescore:
 					residuecounter[residue] = True
 			else: # meaning in another chain, so color as insufficient
@@ -215,7 +232,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode):
 	else:
 		print >> sys.stderr, "# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}".format( seqid, proteinid )
 
-def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
+def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor="red"):
 	'''from the identity calculations, print a script for PyMOL'''
 	colors = {} # key is colorscheme name, value is list of colors
 	colors["red"] = [ [0.63,0.63,0.63] , [0.73,0.55,0.55] , [0.75,0.47,0.47], 
@@ -250,6 +267,7 @@ def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
 
 		# make commands for each chain
 		for chain in keepchains.iterkeys(): # keys are chain letters, values are seq IDs
+			chainoffset = refoffsets.get(chain, 0)
 			pctgroups = defaultdict(list) # key is percent group, value is list of residues
 			# for each residue, assign to a bin
 			for residue in scoredict[keepchains[chain]].iterkeys():
@@ -257,7 +275,7 @@ def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
 				for i,value in enumerate(binvalues[:-1]):
 					upper = binvalues[i+1]
 					if residuescore < upper:
-						pctgroups[value].append(residue)
+						pctgroups[value].append(residue - chainoffset)
 						break
 				# should not need an else
 			# assign whole chain to lowest color, then build up
@@ -271,6 +289,7 @@ def make_output_script(scoredict, keepchains, colorscript, basecolor="red"):
 				binresidues = ",".join(resilist)
 				print >> cs, "select {}, (chain {} & resi {})".format( binname, chain, binresidues )
 				print >> cs, "color {}{}, {}".format( basecolor, int(value), binname )
+	print >> sys.stderr, "# Run as:\n@{}".format( os.path.abspath(colorscript) )
 	# no return
 
 def print_stats(identitydict):
@@ -320,8 +339,8 @@ def main(argv, wayout):
 	# rewrite PDB file or make PyMOL script
 	if conservedict: # indicating that the sequence was found and something was calculated
 		if args.write_script: # write output PyMOL script with color commands
-			refchains = get_chains_only(args.default_chain, args.sequence, args.pdb)
-			make_output_script(conservedict, refchains, args.write_script, args.base_color)
+			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb)
+			make_output_script(conservedict, refchains, refoffsets, args.write_script, args.base_color)
 		else: # recode PDB beta-factors
 			rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode)
 	else:

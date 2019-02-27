@@ -2,7 +2,7 @@
 #
 # pdb_color_generic.py v1 2019-01-21
 
-'''pdb_color_generic.py  last modified 2019-02-14
+'''pdb_color_generic.py  last modified 2019-02-27
     generate a script to color a PDB file based on generic tabular data
     REQUIRES numpy for arange
 
@@ -68,8 +68,9 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 	return rawscore_dict
 
 def get_chains_only(defaultchain, seqidlist, pdbfile):
-	'''read PDB file and return a dict where key is chain and value is sequence ID'''
+	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
+	refoffsets = {} # key is chain, value is integer offset from DB seq
 	print >> sys.stderr, "# Reading chain from PDB {}".format(pdbfile)
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
@@ -80,17 +81,22 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 			for seqid in seqidlist:
 				if seqid.find(proteinid)>-1:
 					chaintarget = line[12]
-					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					chainstart = int(line[14:18].strip())
+					dbstart = int(line[55:60].strip())
+					chainoffset = dbstart - chainstart
+					print >> sys.stderr, "### keeping chain {} for sequence {} with offset {}".format( chaintarget, proteinid, chainoffset )
 					keepchains[chaintarget] = proteinid
+					refoffsets[chaintarget] = chainoffset
 	if defaultchain: # meaning nothing was found, use default and single sequence
 		if seqidlist:
 			keepchains[defaultchain] = seqidlist[0]
 		else:
 			keepchains[defaultchain] = "UNKNOWN"
+		refoffsets[defaultchain] = 0
 		print >> sys.stderr, "### using default chain {}".format( defaultchain )
-	return keepchains
+	return keepchains, refoffsets
 
-def make_output_script(wayout, scoredict, keepchains, groupname, exclude_first, basecolor="red", reverse_colors=False, ZEROOVERRIDE=0.0):
+def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exclude_first, basecolor="red", reverse_colors=False, ZEROOVERRIDE=0.0):
 	'''from the identity calculations, print a script for PyMOL'''
 	###
 	### DECLARE COLOR SCHEMES ###
@@ -217,6 +223,7 @@ def make_output_script(wayout, scoredict, keepchains, groupname, exclude_first, 
 
 	# make commands for each chain
 	for chain in keepchains.iterkeys(): # keys are chain letters, values are seq IDs
+		chainoffset = refoffsets.get(chain, 0)
 		scoregroups = defaultdict(list) # key is percent group, value is list of residues
 		# for each residue, assign to a bin
 		for residue in scoredict[chain].iterkeys():
@@ -224,7 +231,7 @@ def make_output_script(wayout, scoredict, keepchains, groupname, exclude_first, 
 			for i,value in enumerate(binvalues[:-1]):
 				upper = binvalues[i+1]
 				if residuescore < upper:
-					scoregroups[value].append(residue)
+					scoregroups[value].append(residue - chainoffset)
 					break
 			# should not need an else if last bin is large enough
 		# assign whole chain to lowest color, then build up
@@ -265,8 +272,8 @@ def main(argv, wayout):
 	datadict = read_generic_data(args.input_file, args.delimiter, args.data_column, args.site_column, args.chain_column)
 
 	# make PyMOL script with color commands
-	refchains = get_chains_only(args.default_chain, args.sequence, args.pdb)
-	make_output_script(wayout, datadict, refchains, args.group_name, args.exclude_first_group, args.base_color, args.reverse_colors, args.zero_override)
+	refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb)
+	make_output_script(wayout, datadict, refchains, refoffsets, args.group_name, args.exclude_first_group, args.base_color, args.reverse_colors, args.zero_override)
 
 if __name__ == "__main__":
 	main(sys.argv[1:], sys.stdout)
