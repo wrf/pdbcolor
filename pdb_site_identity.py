@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2019-02-28
+'''pdb_site_identity.py  last modified 2019-03-07
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -205,7 +205,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
-					print >> sys.stderr, "### keeping chain {} for sequence {} with offset {}".format( chaintarget, proteinid, chainoffset )
+					print >> sys.stderr, "### keeping chain {} for {}, starting at {} with offset {}".format( chaintarget, proteinid, chainstart, chainoffset )
 					if ignoreoffset:
 						print >> sys.stderr, "### forcing offset to 0"
 						chainoffset = 0
