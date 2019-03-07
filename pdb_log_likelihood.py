@@ -156,7 +156,10 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 			for seqid in seqidlist:
 				if seqid.find(proteinid)>-1:
 					chaintarget = line[12]
-					print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+					chainstart = int(line[14:18].strip())
+					dbstart = int(line[55:60].strip())
+					chainoffset = dbstart - chainstart
+					print >> sys.stderr, "### keeping chain {} for sequence {}, starting at {} with offset {}".format( chaintarget, proteinid, chainstart, chainoffset )
 					keepchains[chaintarget] = proteinid
 		# for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
