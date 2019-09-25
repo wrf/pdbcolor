@@ -22,4 +22,4 @@ else:
 		fillcolor = re.search("fill:#(\w{6});", line)
 		if fillcolor:
 			hexcolor = fillcolor.group(1)
-			print >> sys.stdout, hexcolor, "{:.2f},{:.2f},{:.2f}".format(*[ int(color,16)/255.0 for color in [ hexcolor[0:2] , hexcolor[2:4] , hexcolor[4:6] ] ])
+			sys.stdout.write( "{}  {:.2f},{:.2f},{:.2f}\n".format(hexcolor, *[ int(color,16)/255.0 for color in [ hexcolor[0:2] , hexcolor[2:4] , hexcolor[4:6] ] ]) )

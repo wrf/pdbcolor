@@ -2,7 +2,7 @@
 #
 # gff_cds_to_pymol_script.py v1 2018-06-04
 
-'''gff_cds_to_pymol_script.py  last modified 2018-10-15
+'''gff_cds_to_pymol_script.py  last modified 2019-09-25
     script to generate a PyMOL script to color residues corresponding to exons
     20 colors are currently available, and repeat after 20 exons
 
@@ -26,6 +26,7 @@ run in PyMOL as (meaning do not use the run command):
 '''
 
 import sys
+import os
 import time
 import argparse
 
@@ -55,18 +56,18 @@ def make_output_script(cds_to_residues, out_of_phase_list, chainset, wayout):
 	chainstring = " or ".join( ["chain {}".format(chain) for chain in chainset] )
 
 	# begin printing commands for PyMOL script
-	print >> wayout, "hide everything"
-	print >> wayout, "bg white"
-	print >> wayout, "show cartoon, ({})".format(chainstring)
+	wayout.write("hide everything\n")
+	wayout.write("bg white\n")
+	wayout.write("show cartoon, ({})\n".format(chainstring) )
 	for exonnum, residues in enumerate(cds_to_residues):
 		colorlist = map(str, exon_colors[(exonnum % numcolors)+1])
-		print >> wayout, "set_color excolor_{}, [{}]".format( exonnum+1, ",".join(colorlist) )
-		print >> wayout, "select exon_{}, (resi {}) & ({})".format( exonnum+1, "-".join(residues), chainstring )
-		print >> wayout, "color excolor_{}, exon_{}".format( exonnum+1, exonnum+1 ) 
+		wayout.write("set_color excolor_{}, [{}]\n".format( exonnum+1, ",".join(colorlist) ) )
+		wayout.write("select exon_{}, (resi {}) & ({})\n".format( exonnum+1, "-".join(residues), chainstring ) )
+		wayout.write("color excolor_{}, exon_{}\n".format( exonnum+1, exonnum+1 ) )
 	outofphase_col_str = map(str, outofphase_color)
-	print >> wayout, "set_color outphase, [{}]".format( ",".join(outofphase_col_str) )
-	print >> wayout, "select out_of_phase, (resi {}) & ({})".format( ",".join(out_of_phase_list), chainstring )
-	print >> wayout, "color outphase, out_of_phase"
+	wayout.write("set_color outphase, [{}]\n".format( ",".join(outofphase_col_str) ) )
+	wayout.write("select out_of_phase, (resi {}) & ({})\n".format( ",".join(out_of_phase_list), chainstring ) )
+	wayout.write("color outphase, out_of_phase\n")
 	# no return
 
 def attributes_to_dict(attributes):
@@ -85,7 +86,7 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 	linecounter = 0
 	exoncounter = 0
 	exon_lengths = {}
-	print >> sys.stderr, "# Parsing GFF file {} for {}".format( gfffile, gffid ), time.asctime()
+	sys.stderr.write("# Parsing GFF file {} for {}  ".format( gfffile, gffid ) + time.asctime() + os.linesep)
 	for line in open(gfffile,'r'):
 		line = line.strip()
 		if line and line[0]!="#":
@@ -104,10 +105,10 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 					elif strand=="-": # make numbers negative, so will be sorted backwards
 						exon_lengths[-1*exoncounter] = exonlen
 					else: # for anything else, as everything should have a strand
-						print >> sys.stderr, "# WARNING UNKNOWN STRAND: {} FOR\n{}".format(strand, line)
-	print >> sys.stderr, "# Finished parsing {}, read {} lines".format(gfffile, linecounter), time.asctime()
+						sys.stderr.write("# WARNING UNKNOWN STRAND: {} FOR\n{}\n".format(strand, line) )
+	sys.stderr.write("# Finished parsing {}, read {} lines  ".format(gfffile, linecounter) + time.asctime() + os.linesep)
 	if exoncounter==0:
-		print >> sys.stderr, "# WARNING COULD NOT FIND ANY EXONS FOR {}".format(gffid)
+		sys.stderr.write("# WARNING COULD NOT FIND ANY EXONS FOR {}\n".format(gffid) )
 
 	# sort CDS features in order, depending on strand, and count amino acids per exon
 	basecounter = 0
@@ -130,8 +131,8 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 			residuecounter += 1 # add 1 for the out of phase
 			out_of_phase.append( str(residuecounter) )
 
-	print >> sys.stderr, "# Found {} exons, {} bases for {} residues".format( exoncounter, basecounter, residuecounter )
-	print >> sys.stderr, "# {} codons are out of phase".format( len(out_of_phase) )
+	sys.stderr.write("# Found {} exons, {} bases for {} residues\n".format( exoncounter, basecounter, residuecounter ) )
+	sys.stderr.write("# {} codons are out of phase\n".format( len(out_of_phase) ) )
 	return cds_list, out_of_phase
 
 def main(argv, wayout):

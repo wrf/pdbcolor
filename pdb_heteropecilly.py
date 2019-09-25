@@ -2,7 +2,7 @@
 #
 # pdb_heteropecilly.py v1 2017-10-09
 
-'''pdb_heteropecilly.py  last modified 2018-01-08
+'''pdb_heteropecilly.py  last modified 2019-09-25
 
 pdb_heteropecilly.py -a PRP4B_HUMAN.aln -p 4ian.pdb -s PRP4B_HUMAN > 4ian_w_hp.pdb
 
@@ -31,13 +31,13 @@ from collections import Counter
 from Bio import AlignIO
 
 def get_alignment_heteropecilly(alignment, alignformat, target_seqid):
-	print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+	sys.stderr.write("# Reading alignment from {}\n".format( alignment ) )
 	alignment = AlignIO.read( alignment, alignformat )
 
 	al_length = alignment.get_alignment_length()
 	num_taxa = len(alignment)
 
-	print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+	sys.stderr.write("# Alignment contains {} taxa for {} sites, including gaps\n".format( num_taxa, al_length ) )
 
 	targetseq = None
 	hpscores = None
@@ -51,10 +51,10 @@ def get_alignment_heteropecilly(alignment, alignformat, target_seqid):
 		elif seqrec.id=="Heteropecilly_score":
 			hpscores = seqrec.seq
 	if targetseq is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+		sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 		return None
 	if hpscores is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND HETEROPECILLY SCORES {}, CHECK ALIGNMENT".format( target_seqid )
+		sys.stderr.write("# ERROR: CANNOT FIND HETEROPECILLY SCORES {}, CHECK ALIGNMENT\n".format( target_seqid ) )
 		return None
 
 	index_to_hp = {}
@@ -78,11 +78,11 @@ def get_alignment_heteropecilly(alignment, alignformat, target_seqid):
 				nongapcount += 1
 				rankedscore = int(hpvalue)
 			index_to_hp[targetcount] = rankedscore
-	print >> sys.stderr, "# Found heteropecilly for {} sites".format( nongapcount )
+	sys.stderr.write("# Found heteropecilly for {} sites\n".format( nongapcount ) )
 	return index_to_hp
 
 def rewrite_pdb(pdbfile, seqid, scoredict, wayout):
-	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
+	sys.stderr.write("# Reading PDB from {}\n".format(pdbfile) )
 	atomcounter = 0
 	residuecounter = {}
 	keepchains = []
@@ -116,7 +116,7 @@ def rewrite_pdb(pdbfile, seqid, scoredict, wayout):
 			proteinid = line[42:56].strip()
 			if seqid.find(proteinid)>-1:
 				chaintarget = line[12]
-				print >> sys.stderr, "### keeping chain {} for sequence {}".format( chaintarget, proteinid )
+				sys.stderr.write("### keeping chain {} for sequence {}\n".format( chaintarget, proteinid ) )
 				keepchains.append( chaintarget )
 		# for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
@@ -133,7 +133,7 @@ def rewrite_pdb(pdbfile, seqid, scoredict, wayout):
 			print >> wayout, newline
 		else:
 			print >> wayout, line.strip()
-	print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
+	sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 
 def main(argv, wayout):
 	if not len(argv):

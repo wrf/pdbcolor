@@ -2,7 +2,7 @@
 #
 # make_chain_groups.py v1 2019-02-14
 
-'''make_chain_groups.py  last modified 2019-02-14
+'''make_chain_groups.py  last modified 2019-09-25
     generate a PyMOL script to make selection groups for each chain
 
 make_chain_groups.py -p 5ara.pdb > 5ara_chains.pml
@@ -45,7 +45,7 @@ def make_chain_select_commands(pdbfile, wayout):
 	'''read PDB file and return a dict where key is chain and value is sequence ID'''
 	keepchains = {} # dict where key is chain and value is seqid
 	chaintracker = {} # key is chains from ATOM records, value is True
-	print >> sys.stderr, "# Reading chain info from PDB {}".format(pdbfile)
+	sys.stderr.write("# Reading chain info from PDB {}\n".format(pdbfile) )
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
 		# get relevant chains that match the sequence, in case of hetero multimers
@@ -58,12 +58,12 @@ def make_chain_select_commands(pdbfile, wayout):
 			chaintracker[chaintarget] = True
 	if keepchains:
 		for chain in sorted(keepchains.keys()):
-			print >> wayout, "select {}__{}, chain {}".format( chain, keepchains[chain], chain )
-		print >> sys.stderr, "# wrote 'select' commands for {} chains".format( len(keepchains) )
+			wayout.write("select {}__{}, chain {}\n".format( chain, keepchains[chain], chain ) )
+		sys.stderr.write("# wrote 'select' commands for {} chains\n".format( len(keepchains) ) )
 	else:
-		print >> sys.stderr, "WARNING: NO DBREF RECORDS FOUND IN {}".format(pdbfile)
+		sys.stderr.write("WARNING: NO DBREF RECORDS FOUND IN {}\n".format(pdbfile) )
 		if chaintracker:
-			print >> sys.stderr, "ATOMS WERE FOUND FOR THE FOLLOWING CHAINS:\n{}".format( ",".join( sorted(chaintracker.keys() ) ) )
+			sys.stderr.write("ATOMS WERE FOUND FOR THE FOLLOWING CHAINS:\n{}\n".format( ",".join( sorted(chaintracker.keys() ) ) ) )
 	# no return
 
 def main(argv, wayout):

@@ -2,7 +2,7 @@
 #
 # pdb_color_generic.py v1 2019-01-21
 
-'''pdb_color_generic.py  last modified 2019-02-27
+'''pdb_color_generic.py  last modified 2019-09-25
     generate a script to color a PDB file based on generic tabular data
     REQUIRES numpy for arange
 
@@ -46,7 +46,7 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 	rawscore_dict = defaultdict(dict) # key is chain, value is dict of site and raw score
 	linecounter = 0
 	foundscores = 0
-	print >> sys.stderr, "# Reading scores from column {} in {}, separated by {}".format( scorecolumn, datafile, delimiter )
+	sys.stderr.write("# Reading scores from column {} in {}, separated by {}\n".format( scorecolumn, datafile, delimiter ) )
 	for line in open(datafile, 'r'):
 		line = line.strip()
 		if line and line[0]!="#":
@@ -64,14 +64,14 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 				chain = "A"
 			rawscore_dict[chain][site] = float(score)
 			foundscores += 1
-	print >> sys.stderr, "# Counted {} lines with {} scores".format( linecounter, foundscores )
+	sys.stderr.write("# Counted {} lines with {} scores\n".format( linecounter, foundscores ) )
 	return rawscore_dict
 
 def get_chains_only(defaultchain, seqidlist, pdbfile):
 	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
 	refoffsets = {} # key is chain, value is integer offset from DB seq
-	print >> sys.stderr, "# Reading chain from PDB {}".format(pdbfile)
+	sys.stderr.write("# Reading chain from PDB {}\n".format(pdbfile) )
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
 		# get relevant chains that match the sequence, in case of hetero multimers
@@ -84,7 +84,7 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
-					print >> sys.stderr, "### keeping chain {} for sequence {} with offset {}".format( chaintarget, proteinid, chainoffset )
+					sys.stderr.write("### keeping chain {} for sequence {} with offset {}\n".format( chaintarget, proteinid, chainoffset ) )
 					keepchains[chaintarget] = proteinid
 					refoffsets[chaintarget] = chainoffset
 	if defaultchain: # meaning nothing was found, use default and single sequence
@@ -93,7 +93,7 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 		else:
 			keepchains[defaultchain] = "UNKNOWN"
 		refoffsets[defaultchain] = 0
-		print >> sys.stderr, "### using default chain {}".format( defaultchain )
+		sys.stderr.write("### using default chain {}\n".format( defaultchain ) )
 	return keepchains, refoffsets
 
 def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exclude_first, basecolor="red", reverse_colors=False, ZEROOVERRIDE=0.0):
@@ -150,8 +150,8 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 	###
 	### DETERMINE OPTIMAL BIN VALUES DIRECTLY FROM DATA ###
 	###
-	all_scores = list( itertools.chain( rd.values() for rd in scoredict.values() ) )[0]
-	print >> sys.stderr, "# Generating list of bins from data"
+	all_scores = list( itertools.chain( list(rd.values()) for rd in scoredict.values() ) )[0]
+	sys.stderr.write("# Generating list of bins from data\n")
 	lowest_val = min(all_scores)
 	highest_val = max(all_scores)
 	val_range = highest_val - lowest_val
@@ -162,33 +162,33 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 
 	median_val = numpy.median(all_scores)
 
-	#print >> sys.stderr, magnitude, round_range, rounded_diff
-	print >> sys.stderr, "# data range from {:.2f} to {:.2f}, diff of {:.2f}, median of {:.2f}".format(lowest_val, highest_val, val_range, median_val)
+	#sys.stderr.write(magnitude, round_range, rounded_diff
+	sys.stderr.write("# data range from {:.2f} to {:.2f}, diff of {:.2f}, median of {:.2f}\n".format(lowest_val, highest_val, val_range, median_val) )
 
 	# correction if rounded lower bound is greater than the lowest value
 	round_correction = 10**magnitude
 	if round_range[0] > lowest_val:
-		print >> sys.stderr, "### correcting lower bound {:.2f} to {:.2f}".format( round_range[0], round_range[0]-round_correction)
+		sys.stderr.write("### correcting lower bound {:.2f} to {:.2f}\n".format( round_range[0], round_range[0]-round_correction) )
 		round_range[0] = round_range[0] - round_correction
 
 	if 1 < val_range < 8:
 		magnitude = magnitude-1
-		print >> sys.stderr, "### value range is lower than 8, adjusting decimals in selection names from {} to {}".format(magnitude, magnitude-1)
+		sys.stderr.write("### value range is lower than 8, adjusting decimals in selection names from {} to {}\n".format(magnitude, magnitude-1) )
 
 	# all values are positive
 	if lowest_val >= 0:
-		print >> sys.stderr, "### lowest value is 0, best use sequential colors"
+		sys.stderr.write("### lowest value is 0, best use sequential colors\n")
 		last_bin = float(round_range[1] + round_correction)
 		rounded_step = rounded_diff/8
 		binvalues = numpy.arange(round_range[0], round_range[1]+rounded_step, rounded_step).tolist()
 		binvalues.append( last_bin )
 		if median_val < binvalues[1] and exclude_first is False:
-			print >> sys.stderr, "### median value is low: {:.2f} , use --exclude-first-group if there are too many residues in group 1".format(median_val)
+			sys.stderr.write("### median value is low: {:.2f} , use --exclude-first-group if there are too many residues in group 1\n".format(median_val) )
 
 	# values span 0, set up so zero is middle
 	# ZEROOVERRIDE is 0 by default
 	elif lowest_val < 0 and highest_val > 0:
-		print >> sys.stderr, "### values bridge 0, best use diverging color schemes"
+		sys.stderr.write("### values bridge 0, best use diverging color schemes\n")
 		# middle value should be 0, thus make two ranges
 		low_step = abs(round_range[0]/4)
 		# last value in list should be ZEROOVERRIDE, 0
@@ -196,10 +196,10 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 		high_step = round_range[1]/4
 		# first value should be slightly above zero, to catch near zero values
 		high_set = numpy.arange(ZEROOVERRIDE+round_correction/10, round_range[1]+high_step, high_step).tolist()
-		#print >> sys.stderr, low_set, low_step, high_set, high_step
+		#sys.stderr.write(low_set, low_step, high_set, high_step
 		binvalues = low_set + high_set
 	elif highest_val <= 0: # all values are negative
-		print >> sys.stderr, "### all values are negative, best use sequential colors and --reverse-colors"
+		sys.stderr.write("### all values are negative, best use sequential colors and --reverse-colors\n")
 
 	# make correction factor for naming to avoid decimals
 	binname_correction = 10/10**magnitude
@@ -207,26 +207,26 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 	###
 	### PRINT COMMANDS FOR SCRIPT ###
 	###
-	print >> sys.stderr, "# Generating PyMOL script for color scheme {} with bins of:\n{}".format( basecolor, binvalues )
-	print >> wayout, "hide everything"
-	#print >> wayout, "bg white"
-	print >> wayout, "show cartoon"
-	print >> wayout, "set_color colordefault, [{}]".format( ",".join(map(str,insuf_color)) )
-	print >> wayout, "color colordefault, all"
+	sys.stderr.write("# Generating PyMOL script for color scheme {} with bins of:\n{}\n".format( basecolor, binvalues ) )
+	wayout.write("hide everything\n")
+	#wayout.write("bg white\n")
+	wayout.write("show cartoon\n")
+	wayout.write("set_color colordefault, [{}]\n".format( ",".join(map(str,insuf_color)) ) )
+	wayout.write("color colordefault, all\n")
 	# make commands for target color
 	targetcolors = colors[basecolor]
 	if reverse_colors:
 		targetcolors.reverse()
 	for i,rgb in enumerate(targetcolors):
 		colorname = "{}{:02d}".format( basecolor, int(binvalues[i]*binname_correction) )
-		print >> wayout, "set_color {}, [{}]".format( colorname, ",".join(map(str,rgb)) )
+		wayout.write("set_color {}, [{}]\n".format( colorname, ",".join(map(str,rgb)) ) )
 
 	# make commands for each chain
-	for chain in keepchains.iterkeys(): # keys are chain letters, values are seq IDs
+	for chain in keepchains.keys(): # keys are chain letters, values are seq IDs
 		chainoffset = refoffsets.get(chain, 0)
 		scoregroups = defaultdict(list) # key is percent group, value is list of residues
 		# for each residue, assign to a bin
-		for residue in scoredict[chain].iterkeys():
+		for residue in scoredict[chain].keys():
 			residuescore = scoredict[chain].get(residue,0.00)
 			for i,value in enumerate(binvalues[:-1]):
 				upper = binvalues[i+1]
@@ -235,17 +235,17 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 					break
 			# should not need an else if last bin is large enough
 		# assign whole chain to lowest color, then build up
-		print >> wayout, "color {}{:02d}, chain {}".format( basecolor, int(value*binname_correction), chain )
+		wayout.write("color {}{:02d}, chain {}\n".format( basecolor, int(value*binname_correction), chain ) )
 		# for each bin, make a command to color all residues of that bin
 		for i,value in enumerate(binvalues[:-1]):
 			if i==0 and exclude_first: # long lists apparently crash the program, so skip
 				continue
 			binname = "{:02d}_{}_{}_{}".format( int(value*binname_correction), groupname, i+1, chain )
-			resilist = map(str,scoregroups[value])
+			resilist = list(map(str,scoregroups[value]))
 			if resilist: # do not print empty groups
 				binresidues = ",".join(resilist)
-				print >> wayout, "select {}, (chain {} & resi {})".format( binname, chain, binresidues )
-				print >> wayout, "color {}{:02d}, {}".format( basecolor, int(value*binname_correction), binname )
+				wayout.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
+				wayout.write("color {}{:02d}, {}\n".format( basecolor, int(value*binname_correction), binname ) )
 	# no return
 
 def main(argv, wayout):

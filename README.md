@@ -44,7 +44,7 @@ Generic numerical data about each residue can be extracted from a tabular or csv
 
 ![generic_color_schemes_v1.png](https://github.com/wrf/pdbcolor/blob/master/svg/generic_color_schemes_v1.png)
 
-For example, here I use the dN/dS data of [histamine receptor H1 3RZE](https://www.rcsb.org/structure/3rze), from the reanalysis by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2). Their csv file contains many parameters, here only four are extracted to match up with the PDB file [provided in their supplemental data](https://github.com/clauswilke/proteinER).
+For example, here I use the dN/dS data of [histamine receptor H1 3RZE](https://www.rcsb.org/structure/3rze), from the reanalysis by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2). Their csv file contains many parameters, here only four are extracted to match up with the PDB file [provided in their supplemental data](https://github.com/clauswilke/proteinER). These are dNdS (non-synonymous/synonymous substitutions), lrt (dN/dS likelihood ratio test statistic), rsa (relative solvent accessibility), and wcn (weighted contact number for the side chain).
 
 ```
 pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l blue -g dnds --exclude-first-group > 3rze.color_by_dnds.pml 
@@ -236,6 +236,8 @@ The steps are almost identical to the [sitewise likelihood above](https://github
 ![heteropecilly_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/heteropecilly_color_scheme.png)
 
 `blast_to_align_pairs.py -b simion2017_taxa/hsapiens_vs_uniprot_blastp.tab -q simion2017_taxa/Homo_sapiens.fasta.nogaps -s human_uniprot.fasta -r simion2017_taxa/Homo_sapiens.fasta -p hp_by_site_w_const.tab`
+
+`pdb_heteropecilly.py -a examples/10543-11140-MSH2_HUMAN.aln -p examples/2o8b.pdb -s MSH2_HUMAN > 2o8b_w_hp.pdb`
 
 Heteropecilly color scheme can be visualized within Pymol, using the command in the console `run ~/git/pdbcolor/color_by_heteropecilly.py`
 

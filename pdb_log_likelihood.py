@@ -2,7 +2,7 @@
 #
 # pdb_log_likelihood.py v1 2018-02-01
 
-'''pdb_log_likelihood.py  last modified 2018-03-06
+'''pdb_log_likelihood.py  last modified 2019-09-25
 
 pdb_log_likelihood.py -a PRP4B_HUMAN.aln -p 4ian.pdb -s PRP4B_HUMAN > 4ian_w_lnl.pdb
 
@@ -31,7 +31,6 @@ disordered or cleaved, the sequence still must start with residue 1
 '''
 
 import sys
-import time
 import argparse
 from collections import Counter,defaultdict
 from Bio import AlignIO
@@ -40,13 +39,13 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 	scoreindex_dict = {} # dict of dicts, where key is seqID, value is dict where key is position
 	score_counter = defaultdict(int)
 	for alignment,target_seqid in zip(alignmentlist,targetidlist):
-		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+		sys.stderr.write("# Reading alignment from {}\n".format( alignment ) )
 		alignment = AlignIO.read( alignment, alignformat )
 
 		al_length = alignment.get_alignment_length()
 		num_taxa = len(alignment)
 
-		print >> sys.stderr, "# Alignment contains {} sequences for {} sites, including gaps".format( num_taxa, al_length )
+		sys.stderr.write("# Alignment contains {} sequences for {} sites, including gaps\n".format( num_taxa, al_length ) )
 
 		targetseq = None
 		# scores can be likelihood or heteropecilly
@@ -63,10 +62,10 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 				sitescores = seqrec.seq
 				scoretype = seqrec.id
 		if targetseq is None:
-			print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+			sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 			return None
 		if sitescores is None:
-			print >> sys.stderr, "# ERROR: CANNOT FIND SITEWISE SCORES {}, CHECK ALIGNMENT".format( target_seqid )
+			sys.stderr.write("# ERROR: CANNOT FIND SITEWISE SCORES {}, CHECK ALIGNMENT\n".format( target_seqid ) )
 			return None
 
 		index_to_score = {}
@@ -89,7 +88,7 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 						rankedscore = int(lnlvalue,16) # base 16 string to integer
 					index_to_score[targetcount] = rankedscore
 					score_counter[rankedscore] += 1
-			print >> sys.stderr, "# Found likelihood for {} sites for {}".format( nongapcount, target_seqid )
+			sys.stderr.write("# Found likelihood for {} sites for {}\n".format( nongapcount, target_seqid ) )
 			scoreindex_dict[target_seqid] = index_to_score
 		elif scoretype=="Heteropecilly_score":
 			for i in range(al_length):
@@ -110,16 +109,16 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 						rankedscore = int(hpvalue)
 					index_to_score[targetcount] = rankedscore
 					score_counter[rankedscore] += 1
-			print >> sys.stderr, "# Found heteropecilly for {} sites for {}".format( nongapcount, target_seqid )
+			sys.stderr.write("# Found heteropecilly for {} sites for {}\n".format( nongapcount, target_seqid ) )
 			scoreindex_dict[target_seqid] = index_to_score
 	if printw:
-		print >> sys.stderr, "# SCORES ARE: T1:{}, T2:{}, T3:{}".format(score_counter[1] + score_counter[2], score_counter[4] + score_counter[5], score_counter[7] + score_counter[8])
-		for k,v in score_counter.iteritems():
-			print >> sys.stderr, "#{}\t{}".format(k,v)
+		sys.stderr.write("# SCORES ARE: T1:{}, T2:{}, T3:{}\n".format(score_counter[1] + score_counter[2], score_counter[4] + score_counter[5], score_counter[7] + score_counter[8]) )
+		for k,v in score_counter.items():
+			sys.stderr.write("#{}\t{}\n".format(k,v) )
 	return scoreindex_dict
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, heterocolors):
-	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
+	sys.stderr.write("# Reading PDB from {}\n".format(pdbfile) )
 	atomcounter = 0
 	hetatmcounter = 0
 	residuecounter = {} # keys are strings of chain + residue
@@ -159,7 +158,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
-					print >> sys.stderr, "### keeping chain {} for sequence {}, starting at {} with offset {}".format( chaintarget, proteinid, chainstart, chainoffset )
+					sys.stderr.write("### keeping chain {} for sequence {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
 					keepchains[chaintarget] = proteinid
 		# for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
@@ -176,8 +175,8 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 					residuecounter[chain_residue] = True
 			else: # meaning in another chain, so color as null
 				score = 99
-			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:].rstrip() )
-			print >> wayout, newline
+			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:] )
+			wayout.write( newline )
 
 		#COLUMNS       DATA  TYPE     FIELD         DEFINITION
 		#-----------------------------------------------------------------------
@@ -215,11 +214,11 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 					score = 24
 			else: # color as null
 				score = 99
-			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:].rstrip() )
-			print >> wayout, newline
+			newline = "{}{:6.2f}{}".format( line[:60], score, line[66:] )
+			wayout.write( newline )
 		else:
-			print >> wayout, line.strip()
-	print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
+			wayout.write( line )
+	sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 
 def main(argv, wayout):
 	if not len(argv):
@@ -236,7 +235,7 @@ def main(argv, wayout):
 	args = parser.parse_args(argv)
 
 	if len(args.alignment) != len(args.sequence):
-		print >> sys.stderr, "ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)), time.asctime()
+		sys.stderr.write("ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s\n".format(len(args.alignment), len(args.sequence)) )
 
 	scoredict = get_alignment_values( args.alignment, args.format, args.sequence, args.w)
 	if scoredict: # indicating that the sequence was found and something was calculated

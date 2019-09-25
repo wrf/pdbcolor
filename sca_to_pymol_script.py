@@ -15,6 +15,7 @@ sca_to_pymol_script.py -a aequorins.aln -e vec_by_site.tab -p 1EJ3.pdb -s Aequor
 
 import sys
 import time
+import os
 import argparse
 from collections import defaultdict
 from Bio import AlignIO
@@ -28,7 +29,7 @@ def read_sca_eigenvalues(eigenfile):
 	'''read eigenvalues and return dict where key is sector, value is dict of residues and values'''
 	sectors = defaultdict( lambda: defaultdict(float) )
 	residuecounter = 0
-	print >> sys.stderr, "# reading eigenvalues from {}".format(eigenfile), time.asctime()
+	sys.stderr.write("# reading eigenvalues from {}".format(eigenfile) + time.asctime() + os.linesep )
 	for line in open(eigenfile, 'r'):
 		line = line.strip()
 		if line and line[1]!="S":
@@ -45,7 +46,7 @@ def read_sca_eigenvalues(eigenfile):
 			elif e4val >= 0.05: # green sector, 3
 				residuecounter += 1
 				sectors[3][position] = e4val
-	print >> sys.stderr, "# found {} sectors for {} residues".format(len(sectors), residuecounter)
+	sys.stderr.write("# found {} sectors for {} residues\n".format(len(sectors), residuecounter) )
 	return sectors
 
 def calculate_rgb(value, sector):
@@ -64,22 +65,22 @@ def calculate_rgb(value, sector):
 
 def get_site_offset(target_seqid, alignfile, alignformat, pdbfile):
 	'''read alignment and PDB, get spacing for target sequence, return dict where key is alignment position and value is residue number in structure'''
-	print >> sys.stderr, "# Reading alignment from {}".format( alignfile )
+	sys.stderr.write("# Reading alignment from {}\n".format( alignfile ) )
 	alignment = AlignIO.read( alignfile, alignformat )
 	al_length = alignment.get_alignment_length()
 	num_taxa = len(alignment)
-	print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+	sys.stderr.write("# Alignment contains {} taxa for {} sites, including gaps\n".format( num_taxa, al_length ) )
 	targetseq = None
 	for seqrec in alignment:
 		if seqrec.id==target_seqid:
 			targetseq = seqrec.seq
 	if targetseq is None:
-		print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+		sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 		return None
 	target_position = 0
 	aapos_to_align = {} # key is prot position, value is tuple of position in alignment and amino acid
 	aapos_to_res = {} # key is prot position, value is amino acid at that position
-	print >> sys.stderr, "# Determining alignment positions for {}".format(target_seqid), time.asctime()
+	sys.stderr.write("# Determining alignment positions for {}\n".format(target_seqid) + time.asctime() + os.linesep )
 	for i in range(al_length):
 		targetletter = targetseq[i] # seq index is 0 to max
 		if targetletter != "-": # meaning anything except gaps
@@ -93,7 +94,7 @@ def get_site_offset(target_seqid, alignfile, alignformat, pdbfile):
 	alignpos_to_res = {} # key is alignment position, value is residue number in structure
 	found_residues = {}
 	#ATOM      1  N   ASP A   3     -32.800  10.288   5.960  1.00 30.00           N
-	print >> sys.stderr, "# Reading protein structure from {}".format( pdbfile )
+	sys.stderr.write("# Reading protein structure from {}\n".format( pdbfile ) )
 	for line in open(pdbfile, 'r'):
 		record = line[0:6].strip()
 		if record=="ATOM": # skip all other records
@@ -105,41 +106,41 @@ def get_site_offset(target_seqid, alignfile, alignformat, pdbfile):
 			if pdb_residue_num in found_residues: # do not process if this residue was found for another ATOM
 				continue
 			if advance_offset: # if first residue in structure is ahead of alignment
-				print >> sys.stderr, "# First residue {} in structure is {}, offsetting".format(residue, pdb_residue_num)
+				sys.stderr.write("# First residue {} in structure is {}, offsetting\n".format(residue, pdb_residue_num) )
 				advance_offset = False # stop checking after first time
 				residue_offset = (pdb_residue_num-1)
 			found_residues[pdb_residue_num] = True
 			align_res_num = pdb_residue_num + residue_offset
-			#print >> sys.stderr, residue,  pdb_residue_num, residue_offset, align_res_num, aapos_to_res.get(align_res_num,"X"), aapos_to_align[align_res_num]
+			#sys.stderr.write(residue,  pdb_residue_num, residue_offset, align_res_num, aapos_to_res.get(align_res_num,"X"), aapos_to_align[align_res_num])
 			if residue==aapos_to_res.get(align_res_num,"X"):
 				alignpos_to_res[aapos_to_align[align_res_num]] = pdb_residue_num
 			else: # residue is offset, so increment
 				residue_offset -= 1
-				#print >> sys.stderr, "offset = {}".format(residue_offset)
+				#sys.stderr.write("offset = {}".format(residue_offset))
 	return alignpos_to_res
 
 def make_pymol_script(pdbfile, protsectors, aligntores):
 	'''generate a pymol script with coloring instructions'''
 	script_file = "{}.sectors.py".format(pdbfile)
-	print >> sys.stderr, "# Generating python script {}".format( script_file )
+	sys.stderr.write("# Generating python script {}\n".format( script_file ) )
 	with open(script_file,'w') as sf:
-		print >> sf, "bg white"
-		print >> sf, "hide all"
-		print >> sf, "show cartoon"
-		print >> sf, "set_color colordefault, [0.8,0.8,0.8]"
-		print >> sf, "color colordefault, all"
-		for sector,residict in protsectors.iteritems():
+		sf.write("bg white\n")
+		sf.write("hide all\n")
+		sf.write("show cartoon\n")
+		sf.write("set_color colordefault, [0.8,0.8,0.8]\n")
+		sf.write("color colordefault, all\n")
+		for sector,residict in protsectors.items():
 			sectorname = "sector_{}".format(sector)
 			resilist = [str(aligntores.get(k,None)) for k in sorted(residict.keys()) if not None]
 			sectorresidues = ",".join(resilist)
-			print >> sf, "select {}, (resi {})".format( sectorname, sectorresidues )
-			print >> sf, "show spheres, {}".format(sectorname)
+			sf.write("select {}, (resi {})\n".format( sectorname, sectorresidues ) )
+			sf.write("show spheres, {}\n".format(sectorname) )
 			for residue in sorted(residict.keys()):
 				adjresidue = aligntores.get(residue,None)
 				if adjresidue is not None:
-					print >> sf, "set_color colres{}, [{},{},{}]".format(adjresidue, *calculate_rgb(residict[residue], sector))
-					print >> sf, "color colres{}, (resi {})".format( adjresidue, adjresidue )
-	print >> sys.stderr, "# Finished writing python script {}".format( script_file ), time.asctime()
+					sf.write("set_color colres{}, [{},{},{}]\n".format(adjresidue, *calculate_rgb(residict[residue], sector)) )
+					sf.write("color colres{}, (resi {})\n".format( adjresidue, adjresidue ) )
+	sys.stderr.write("# Finished writing python script {}".format( script_file ) + time.asctime() + os.linesep)
 
 def main(argv, wayout):
 	if not len(argv):
