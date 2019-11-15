@@ -10,13 +10,14 @@ get_svg_colors.py image.svg
   output is printed as:
 62698d 0.38 0.41 0.55
   for hex color, then 0.0-1.0 values of R G and B
+
 '''
 
 import re
 import sys
 
 if len(sys.argv)<2:
-	print >> sys.stderr, __doc__
+	sys.stderr.write( __doc__ )
 else:
 	for line in open(sys.argv[1]):
 		fillcolor = re.search("fill:#(\w{6});", line)
