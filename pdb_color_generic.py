@@ -2,13 +2,14 @@
 #
 # pdb_color_generic.py v1 2019-01-21
 
-'''pdb_color_generic.py  last modified 2019-09-25
+'''pdb_color_generic.py  last modified 2019-11-15
     generate a script to color a PDB file based on generic tabular data
     REQUIRES numpy for arange
 
 pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l green > 3rze.color_by_dnds.pml
 
     options are:
+    -s sequence names to get the chain from DBREF records, otherwise use default chain
     -c column, column index of desired data, starting from 0
     -d delimiter, default is tab, e.g. change to "," for csv
     -g group name, changes the group name in the PyMOL selection
@@ -41,7 +42,7 @@ import itertools
 import numpy # for arange,around,floor,log10,median
 from collections import defaultdict
 
-def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolumn=None):
+def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolumn=None, defaultchain="A"):
 	'''read generic data file, and return a dict key is site number and value is score'''
 	rawscore_dict = defaultdict(dict) # key is chain, value is dict of site and raw score
 	linecounter = 0
@@ -60,8 +61,8 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 			score = float(lsplits[scorecolumn])
 			if type(chaincolumn) is int:
 				chain = lsplits[int(chaincolumn)]
-			else:
-				chain = "A"
+			else: # use default chain
+				chain = defaultchain
 			rawscore_dict[chain][site] = float(score)
 			foundscores += 1
 	sys.stderr.write("# Counted {} lines with {} scores\n".format( linecounter, foundscores ) )
@@ -69,7 +70,7 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 
 def get_chains_only(defaultchain, seqidlist, pdbfile):
 	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
-	keepchains = {} # dict where key is chain and value is seqid
+	keepchains = {} # dict where key is chain and value is seqid, though value is not used
 	refoffsets = {} # key is chain, value is integer offset from DB seq
 	sys.stderr.write("# Reading chain from PDB {}\n".format(pdbfile) )
 	for line in open(pdbfile,'r'):
@@ -88,9 +89,9 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 					keepchains[chaintarget] = proteinid
 					refoffsets[chaintarget] = chainoffset
 	if defaultchain: # meaning nothing was found, use default and single sequence
-		if seqidlist:
+		if seqidlist: # all default chains are assumed to use only the first sequence
 			keepchains[defaultchain] = seqidlist[0]
-		else:
+		else: # value is not called, but just to indicate that -s is or used or not
 			keepchains[defaultchain] = "UNKNOWN"
 		refoffsets[defaultchain] = 0
 		sys.stderr.write("### using default chain {}\n".format( defaultchain ) )
@@ -263,13 +264,13 @@ def main(argv, wayout):
 	parser.add_argument("--exclude-first-group", action="store_true", help="exclude lowest score group, for cases where there are a large number of score-0 residues")
 	parser.add_argument("--exclude-middle-group", action="store_true", help="exclude middle score group for diverging-type datasets")
 	parser.add_argument("--reverse-colors", action="store_true", help="if used, reverse colors for negative-value datasets")
-	parser.add_argument("--chain-column", help="column containing chain ID, default is None, will use chain A")
+	parser.add_argument("--chain-column", type=int, help="column containing chain ID, default is None, will use chain A")
 	parser.add_argument("--site-column", default=0, type=int, help="index of site column, starting from 0 [0]")
 	parser.add_argument("--zero-override", default=0.0, type=float, help="middle index if data spans negative to positive, default is 0 as the middle color")
 	args = parser.parse_args(argv)
 
 	# read generic format data
-	datadict = read_generic_data(args.input_file, args.delimiter, args.data_column, args.site_column, args.chain_column)
+	datadict = read_generic_data(args.input_file, args.delimiter, args.data_column, args.site_column, args.chain_column, args.default_chain)
 
 	# make PyMOL script with color commands
 	refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb)
