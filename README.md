@@ -47,16 +47,18 @@ Generic numerical data about each residue can be extracted from a tabular or csv
 For example, here I use the dN/dS data of [histamine receptor H1 3RZE](https://www.rcsb.org/structure/3rze), from the reanalysis by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2). Their csv file contains many parameters, here only four are extracted to match up with the PDB file [provided in their supplemental data](https://github.com/clauswilke/proteinER). These are dNdS (non-synonymous/synonymous substitutions), lrt (dN/dS likelihood ratio test statistic), rsa (relative solvent accessibility), and wcn (weighted contact number for the side chain).
 
 ```
-pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l blue -g dnds --exclude-first-group > 3rze.color_by_dnds.pml 
+pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l blue -g dnds --exclude-common-group > 3rze.color_by_dnds.pml 
 pdb_color_generic.py -c 5 -d , -p 3rze.pdb  -i 3rze.map.rates_features.csv -l div2b -g lrt > 3rze.color_by_lrt.pml 
 pdb_color_generic.py -c 12 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l green -g rsa > 3rze.color_by_rsa.pml
 pdb_color_generic.py -c 13 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l div1b -g wcn > 3rze.color_by_wcn.pml 
 ```
 
-### Usage considerations ###
-PyMOL appears to have trouble running commands with very long lists of residues. For cases where most of the values are 0 (or otherwise uninteresting) such as dN/dS or sitewise identity, only a few residues need to be highlighted. The lowest group can be omitted using the flag `--exclude-first-group`. 
+![3rze_w_wcn_dnds.png](https://github.com/wrf/pdbcolor/blob/master/examples/3rze_w_wcn_dnds.png)
 
-Because scores are always processed from lowest to highest, for cases where all values are negative, the color schemes can be reversed with the flag `--reverse-colors`.
+### Usage considerations ###
+PyMOL appears to have trouble running commands with very long lists of residues. For cases where most of the values are 0 (or otherwise uninteresting) such as dN/dS or sitewise identity, only a few residues need to be highlighted. The lowest group can be omitted using the flag `-x` (`--exclude-common-group`).
+
+Because scores are always processed from lowest to highest, for cases where all values are negative, the color schemes can be reversed with the flag `-r` (`--reverse-colors`). In this case, `-x` would again omit the bin of values closest to 0, hence the highest values. For diverging datasets and color schemes, the same option removes the middle bin (4, out of 0 to 8) by default. The common bin to omit can be changed with the option `-O` (`--exclusion-override`).
 
 ## percent identity ##
 For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). The same sequential color schemes as generic can be used as well: red, yellow, blue, and green.

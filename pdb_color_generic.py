@@ -2,7 +2,7 @@
 #
 # pdb_color_generic.py v1 2019-01-21
 
-'''pdb_color_generic.py  last modified 2019-11-15
+'''pdb_color_generic.py  last modified 2019-11-18
     generate a script to color a PDB file based on generic tabular data
     REQUIRES numpy for arange
 
@@ -22,6 +22,8 @@ pdb_color_generic.py -c 4 -d , -p 3rze.pdb -i 3rze.map.rates_features.csv -l gre
         div1b - light brown to black to light green, for black bg display
         div2w - brick red to white to dark blue, for white bg
         div2b - pink to black to sky blue, for black bg
+    --exclude-common do not print the bin for the most common group
+    -O specify which group is common, otherwise assumed to be either 0, 4, or 8
 
     data -i can be any text file, so long as columns can be split with -d
     generally, it is best to format in something like this:
@@ -47,12 +49,15 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 	rawscore_dict = defaultdict(dict) # key is chain, value is dict of site and raw score
 	linecounter = 0
 	foundscores = 0
+	columnmax = 0
 	sys.stderr.write("# Reading scores from column {} in {}, separated by {}\n".format( scorecolumn, datafile, delimiter ) )
 	for line in open(datafile, 'r'):
 		line = line.strip()
 		if line and line[0]!="#":
 			linecounter += 1
 			lsplits = line.split(delimiter)
+			if len(lsplits) > columnmax:
+				columnmax = len(lsplits)
 			sitecol = lsplits[sitecolumn] # raw, might be string
 			try: # check if can be turned into integer
 				site = int(float(sitecol))
@@ -66,6 +71,9 @@ def read_generic_data(datafile, delimiter, scorecolumn, sitecolumn=0, chaincolum
 			rawscore_dict[chain][site] = float(score)
 			foundscores += 1
 	sys.stderr.write("# Counted {} lines with {} scores\n".format( linecounter, foundscores ) )
+	if foundscores==0:
+		if columnmax < 2:
+			sys.stderr.write("# WARNING: No scores found, lines contained only 1 column, check -d\n")
 	return rawscore_dict
 
 def get_chains_only(defaultchain, seqidlist, pdbfile):
@@ -97,7 +105,7 @@ def get_chains_only(defaultchain, seqidlist, pdbfile):
 		sys.stderr.write("### using default chain {}\n".format( defaultchain ) )
 	return keepchains, refoffsets
 
-def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exclude_first, basecolor="red", reverse_colors=False, ZEROOVERRIDE=0.0):
+def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exclude_common, default_chain_grp=None, basecolor="red", reverse_colors=False, ZEROOVERRIDE=0.0):
 	'''from the identity calculations, print a script for PyMOL'''
 	###
 	### DECLARE COLOR SCHEMES ###
@@ -163,8 +171,12 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 
 	median_val = numpy.median(all_scores)
 
-	#sys.stderr.write(magnitude, round_range, rounded_diff
 	sys.stderr.write("# data range from {:.2f} to {:.2f}, diff of {:.2f}, median of {:.2f}\n".format(lowest_val, highest_val, val_range, median_val) )
+
+	# if a default chain color override is given
+	if default_chain_grp is not None:
+		defaultindex = default_chain_grp
+		sys.stderr.write("# Using bin {} as the default chain color\n".format(defaultindex) )
 
 	# correction if rounded lower bound is greater than the lowest value
 	round_correction = 10**magnitude
@@ -183,9 +195,10 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 		rounded_step = rounded_diff/8
 		binvalues = numpy.arange(round_range[0], round_range[1]+rounded_step, rounded_step).tolist()
 		binvalues.append( last_bin )
-		if median_val < binvalues[1] and exclude_first is False:
-			sys.stderr.write("### median value is low: {:.2f} , use --exclude-first-group if there are too many residues in group 1\n".format(median_val) )
-
+		if median_val < binvalues[1] and exclude_common is False:
+			sys.stderr.write("### median value is low: {:.2f} , use --exclude-common-group if there are too many residues in group 1\n".format(median_val) )
+		if default_chain_grp is None:
+			defaultindex = 0
 	# values span 0, set up so zero is middle
 	# ZEROOVERRIDE is 0 by default
 	elif lowest_val < 0 and highest_val > 0:
@@ -199,9 +212,15 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 		high_set = numpy.arange(ZEROOVERRIDE+round_correction/10, round_range[1]+high_step, high_step).tolist()
 		#sys.stderr.write(low_set, low_step, high_set, high_step
 		binvalues = low_set + high_set
+		if default_chain_grp is None:
+			defaultindex = 4
 	elif highest_val <= 0: # all values are negative
-		sys.stderr.write("### all values are negative, best use sequential colors and --reverse-colors\n")
-
+		if reverse_colors:
+			sys.stderr.write("### all values are negative\n")
+		else:
+			sys.stderr.write("### all values are negative, best use sequential colors and --reverse-colors\n")
+		if default_chain_grp is None:
+			defaultindex = 8
 	# make correction factor for naming to avoid decimals
 	binname_correction = 10/10**magnitude
 
@@ -212,6 +231,7 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 	wayout.write("hide everything\n")
 	#wayout.write("bg white\n")
 	wayout.write("show cartoon\n")
+	# set color for all objects that are not part of the target chains
 	wayout.write("set_color colordefault, [{}]\n".format( ",".join(map(str,insuf_color)) ) )
 	wayout.write("color colordefault, all\n")
 	# make commands for target color
@@ -236,10 +256,10 @@ def make_output_script(wayout, scoredict, keepchains, refoffsets, groupname, exc
 					break
 			# should not need an else if last bin is large enough
 		# assign whole chain to lowest color, then build up
-		wayout.write("color {}{:02d}, chain {}\n".format( basecolor, int(value*binname_correction), chain ) )
+		wayout.write("color {}{:02d}, chain {}\n".format( basecolor, int(binvalues[defaultindex]*binname_correction), chain ) )
 		# for each bin, make a command to color all residues of that bin
 		for i,value in enumerate(binvalues[:-1]):
-			if i==0 and exclude_first: # long lists apparently crash the program, so skip
+			if i==defaultindex and exclude_common: # long lists apparently crash the program, so skip
 				continue
 			binname = "{:02d}_{}_{}_{}".format( int(value*binname_correction), groupname, i+1, chain )
 			resilist = list(map(str,scoregroups[value]))
@@ -261,9 +281,9 @@ def main(argv, wayout):
 	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
 	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB, give multiple names if data is available in the input file")
 	parser.add_argument("--default-chain", default="A", help="default letter of chain [A], if DBREF for the sequence cannot be found in PDB")
-	parser.add_argument("--exclude-first-group", action="store_true", help="exclude lowest score group, for cases where there are a large number of score-0 residues")
-	parser.add_argument("--exclude-middle-group", action="store_true", help="exclude middle score group for diverging-type datasets")
-	parser.add_argument("--reverse-colors", action="store_true", help="if used, reverse colors for negative-value datasets")
+	parser.add_argument("-x","--exclude-common-group", action="store_true", help="exclude common group, for cases where there are a large number of score-0 residues")
+	parser.add_argument("-O","--default-chain-override", type=int, help="index to color all residues by default (from 0 to 8) for lowest score group, otherwise determined automatically")
+	parser.add_argument("-r","--reverse-colors", action="store_true", help="if used, reverse colors for negative-value datasets")
 	parser.add_argument("--chain-column", type=int, help="column containing chain ID, default is None, will use chain A")
 	parser.add_argument("--site-column", default=0, type=int, help="index of site column, starting from 0 [0]")
 	parser.add_argument("--zero-override", default=0.0, type=float, help="middle index if data spans negative to positive, default is 0 as the middle color")
@@ -274,7 +294,7 @@ def main(argv, wayout):
 
 	# make PyMOL script with color commands
 	refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb)
-	make_output_script(wayout, datadict, refchains, refoffsets, args.group_name, args.exclude_first_group, args.base_color, args.reverse_colors, args.zero_override)
+	make_output_script(wayout, datadict, refchains, refoffsets, args.group_name, args.exclude_common_group, args.default_chain_override, args.base_color, args.reverse_colors, args.zero_override)
 
 if __name__ == "__main__":
 	main(sys.argv[1:], sys.stdout)
