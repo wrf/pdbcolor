@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2019-03-07
+'''pdb_site_identity.py  last modified 2019-09-25
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -42,27 +42,27 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
     q(a) is background frequency of amino acid 'a' in all proteins in the alignment'''
 	consindex_dict = {} # key is target seqid, value is dict of conservation scores
 	for alignment, target_seqid in zip(alignmentlist,targetidlist):
-		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+		sys.stderr.write("# Reading alignment from {}\n".format( alignment ) )
 		alignment = AlignIO.read( alignment, alignformat )
 
 		al_length = alignment.get_alignment_length()
 		num_taxa = len(alignment)
 
-		print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+		sys.stderr.write("# Alignment contains {} taxa for {} sites, including gaps\n".format( num_taxa, al_length ) )
 
 		targetseq = None
 		for seqrec in alignment:
 			if seqrec.id==target_seqid:
 				targetseq = seqrec.seq
 		if targetseq is None:
-			print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+			sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 			return None
 
 		index_to_cons = {}
 		targetcount = 0 # keep track of position in target sequence for all non-gap letters
 
 		base_aa_counts = Counter()
-		print >> sys.stderr, "# Calculating global amino acid frequencies", time.asctime()
+		sys.stderr.write("# Calculating global amino acid frequencies  " + time.asctime() + os.linesep)
 		for i in range(al_length): # only iterate over columns that are not gaps in target seq
 			targetletter = targetseq[i]
 			if targetletter != "-": # meaning anything except gaps
@@ -70,9 +70,9 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 				base_aa_counts.update(alignment_column)
 		total_base_aas = sum(base_aa_counts.values()) - base_aa_counts.get("-",0)
 		base_frequencies = dict([ (AA, base_aa_counts[AA]*1.0/total_base_aas) for AA in "ACDEFGHIKLMNPQRSTVWY-"])
-		#print >> sys.stderr, base_frequencies
+		#sys.stderr.write(base_frequencies)
 
-		print >> sys.stderr, "# Calculating sitewise conservation", time.asctime()
+		sys.stderr.write("# Calculating sitewise conservation  " + time.asctime() + os.linesep)
 		for i in range(al_length):
 			targetletter = targetseq[i]
 			if targetletter != "-": # meaning anything except gaps
@@ -87,10 +87,9 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 					conservation = log(1/base_frequencies[targetletter])
 				else: # calculate by formula
 					conservation = target_freq * log(target_freq/base_frequencies[targetletter]) + ( (1-target_freq) * log( (1-target_freq)/(1-base_frequencies[targetletter]) ) )
-			#	print >> sys.stderr, i, targetletter, target_freq, base_frequencies[targetletter], conservation # aa_counter
 				# if reporting raw percentage
 				index_to_cons[targetcount] = conservation
-		print >> sys.stderr, "# Calculated conservation for {} sites".format( len(index_to_cons) )
+		sys.stderr.write("# Calculated conservation for {} sites\n".format( len(index_to_cons) ) )
 		consindex_dict[target_seqid] = index_to_cons
 	return consindex_dict
 
@@ -98,20 +97,20 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 	'''read alignment from file, return a dict where key is seqid, value is a dict where keys are integers of position of the target seq in the alignment (starting from 1), and value is float of identity'''
 	identindex_dict = {} # key is target seqid, value is dict of identities
 	for alignment, target_seqid in zip(alignmentlist,targetidlist):
-		print >> sys.stderr, "# Reading alignment from {}".format( alignment )
+		sys.stderr.write("# Reading alignment from {}\n".format( alignment ) )
 		alignment = AlignIO.read( alignment, alignformat )
 
 		al_length = alignment.get_alignment_length()
 		num_taxa = len(alignment)
 
-		print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+		sys.stderr.write("# Alignment contains {} taxa for {} sites, including gaps\n".format( num_taxa, al_length ) )
 
 		targetseq = None
 		for seqrec in alignment:
 			if seqrec.id==target_seqid:
 				targetseq = seqrec.seq
 		if targetseq is None:
-			print >> sys.stderr, "# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT".format( target_seqid )
+			sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 			return None
 
 		index_to_identity = {}
@@ -132,7 +131,7 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 				else: # meaning has more characters than gaps, so calculate normal conservation
 					conservation = 100.0 * aa_counter[targetletter] / len(nogap_alignment_column)
 				index_to_identity[targetcount] = conservation
-		print >> sys.stderr, "# Calculated sitewise identity for {} sites".format( len(index_to_identity) )
+		sys.stderr.write("# Calculated sitewise identity for {} sites\n".format( len(index_to_identity) ) )
 		identindex_dict[target_seqid] = index_to_identity
 	return identindex_dict
 
@@ -140,7 +139,7 @@ def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
 	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
 	refoffsets = {} # key is chain, value is integer offset from DB seq
-	print >> sys.stderr, "# Reading chain from PDB {}".format(pdbfile)
+	sys.stderr.write("# Reading chain from PDB {}".format(pdbfile) + os.linesep)
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
 		# get relevant chains that match the sequence, in case of hetero multimers
@@ -153,9 +152,9 @@ def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
-					print >> sys.stderr, "### keeping chain {} for {}, starting at {} with offset {}".format( chaintarget, proteinid, chainstart, chainoffset )
+					sys.stderr.write("### keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
 					if ignoreoffset:
-						print >> sys.stderr, "### forcing offset to 0"
+						sys.stderr.write("### forcing offset to 0\n")
 						chainoffset = 0
 					keepchains[chaintarget] = proteinid
 					refoffsets[chaintarget] = [chainstart, chainoffset]
@@ -165,7 +164,7 @@ def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
 	return keepchains, refoffsets
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset):
-	print >> sys.stderr, "# Reading PDB from {}".format(pdbfile)
+	sys.stderr.write("# Reading PDB from {}\n".format(pdbfile) )
 	atomcounter = 0
 	residuecounter = {}
 	keepchains = {} # dict where key is chain and value is seqid
@@ -205,9 +204,9 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
-					print >> sys.stderr, "### keeping chain {} for {}, starting at {} with offset {}".format( chaintarget, proteinid, chainstart, chainoffset )
+					sys.stderr.write("### keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
 					if ignoreoffset:
-						print >> sys.stderr, "### forcing offset to 0"
+						sys.stderr.write("### forcing offset to 0\n")
 						chainoffset = 0
 					keepchains[chaintarget] = proteinid
 					refoffsets[chaintarget] = [chainstart, chainoffset]
@@ -218,7 +217,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 			chainstart, chainoffset = refoffsets.get(chain, [1,0] )
 			if residue < chainstart:
 				if residue < 1:
-					print >> sys.stderr, "# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)".format(residue)
+					sys.stderr.write("# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)\n".format(residue) )
 				continue
 			if defaultchain or forcerecode or chain in keepchains: # default chain means take all, or use chain A
 				atomcounter += 1
@@ -230,14 +229,14 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 					residuecounter[residue] = True
 			else: # meaning in another chain, so color as insufficient
 				residuescore = -1
-			newline = "{}{:6.2f}{}".format( line[:60], residuescore, line[66:].rstrip() )
-			print >> wayout, newline
+			newline = "{}{:6.2f}{}\n".format( line[:60], residuescore, line[66:].rstrip() )
+			wayout.write(newline)
 		else: # this will also print DBREF lines
-			print >> wayout, line.strip()
+			wayout.write(line)
 	if atomcounter:
-		print >> sys.stderr, "# Recoded values for {} atoms in {} residues".format(atomcounter, len(residuecounter) )
+		sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 	else:
-		print >> sys.stderr, "# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}".format( seqid, proteinid )
+		sys.stderr.write("# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}\n".format( seqid, proteinid ) )
 
 def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor="red"):
 	'''from the identity calculations, print a script for PyMOL'''
@@ -258,29 +257,28 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor
 
 	binvalues = [0.0, 50.0 ,60.0 ,70.0 ,80.0 ,90.0 ,95.0 ,98.0 ,100, 101]
 
-	print >> sys.stderr, "# Generating PyMOL script {}".format(colorscript)
+	sys.stderr.write("# Generating PyMOL script {}\n".format(colorscript) )
 	# begin printing commands for PyMOL script
 	with open(colorscript, 'w') as cs:
-		print >> cs, "hide everything"
-		#print >> wayout, "bg white"
-		print >> cs, "show cartoon"
-		print >> cs, "set_color colordefault, [{}]".format( ",".join(map(str,insuf_color)) )
-		print >> cs, "color colordefault, all"
+		cs.write("hide everything\n")
+		cs.write("show cartoon\n")
+		cs.write("set_color colordefault, [{}]\n".format( ",".join(map(str,insuf_color)) ) )
+		cs.write("color colordefault, all\n" )
 		# make commands for each color
-		for color, colorlist in colors.iteritems():
+		for color, colorlist in colors.items():
 			for i,rgb in enumerate(colorlist):
 				colorname = "{}{}".format( color, int(binvalues[i]) )
-				print >> cs, "set_color {}, [{}]".format( colorname, ",".join(map(str,rgb)) )
+				cs.write("set_color {}, [{}]\n".format( colorname, ",".join(map(str,rgb)) ) )
 
 		# make commands for each chain
-		for chain in keepchains.iterkeys(): # keys are chain letters, values are seq IDs
+		for chain in keepchains.keys(): # keys are chain letters, values are seq IDs
 			chainstart, chainoffset = refoffsets.get(chain, [1,0] )
 			pctgroups = defaultdict(list) # key is percent group, value is list of residues
 			# for each residue, assign to a bin
-			for residue in scoredict[keepchains[chain]].iterkeys():
+			for residue in scoredict[keepchains[chain]].keys():
 				if residue < chainstart: # chain begins partway through protein
 					if residue < 1: # chain includes expression vector
-						print >> sys.stderr, "# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)".format(residue)
+						sys.stderr.write("# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)\n".format(residue) )
 					continue
 				residuescore = scoredict[keepchains[chain]].get(residue,0.00)
 				for i,value in enumerate(binvalues[:-1]):
@@ -290,7 +288,7 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor
 						break
 				# should not need an else
 			# assign whole chain to lowest color, then build up
-			print >> cs, "color {}0, chain {}".format( basecolor, chain )
+			cs.write("color {}0, chain {}\n".format( basecolor, chain ) )
 			# for each bin, make a command to color all residues of that bin
 			for i,value in enumerate(binvalues[:-1]):
 				if i==0: # long lists apparently crash the program, so skip
@@ -298,20 +296,20 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor
 				binname = "{}pct_grp_{}_{}".format( int(value), i+1, chain )
 				resilist = map(str,pctgroups[value])
 				binresidues = ",".join(resilist)
-				print >> cs, "select {}, (chain {} & resi {})".format( binname, chain, binresidues )
-				print >> cs, "color {}{}, {}".format( basecolor, int(value), binname )
-	print >> sys.stderr, "# Run as:\n@{}".format( os.path.abspath(colorscript) )
+				cs.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
+				cs.write("color {}{}, {}\n".format( basecolor, int(value), binname ) )
+	sys.stderr.write("# Run as:\n@{}".format( os.path.abspath(colorscript) ) + os.linesep)
 	# no return
 
 def print_stats(identitydict):
 	'''based on the identity scores, print a short table indicating overall conservation'''
-	for seqid,posscores in identitydict.iteritems():
+	for seqid,posscores in identitydict.items():
 		num_sites = len(posscores.values())
 		averageid = sum(posscores.values()) * 1.0 / num_sites
 		lowestid = min(posscores.values())
 		highestid = max(posscores.values())
-		num_identities = posscores.values().count(highestid)
-		print >> sys.stderr, "{}\tlength:{}\tmean:{:.2f}\tmin:{:.1f}\tmax:{:.1f}\tN_max:{} ({:.1f}%)".format( seqid, num_sites, averageid, lowestid, highestid, num_identities, num_identities*100.0/num_sites)
+		num_identities = list(posscores.values()).count(highestid)
+		sys.stderr.write("{}\tlength:{}\tmean:{:.2f}\tmin:{:.1f}\tmax:{:.1f}\tN_max:{} ({:.1f}%)\n".format( seqid, num_sites, averageid, lowestid, highestid, num_identities, num_identities*100.0/num_sites) )
 	# no return
 
 def main(argv, wayout):
@@ -333,10 +331,10 @@ def main(argv, wayout):
 	args = parser.parse_args(argv)
 
 	if len(args.alignment) != len(args.sequence):
-		print >> sys.stderr, "ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)), time.asctime()
+		sys.stderr.write("ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)) + time.asctime() + os.linesep)
 
 	if len(args.sequence) > len(set(args.sequence)):
-		print >> sys.stderr, "ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s"
+		sys.stderr.write("ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s\n")
 
 	# calculate identity or conservation
 	if args.ct_conservation:

@@ -74,7 +74,7 @@ def color_by_identity(selection="all", colorscheme="rainbow", bychain=False):
 
 	# iterate through temperatureFactor value in PyMOL
 	# atoms with each value are selected and colored with the following steps
-	for chain in chain_to_colorscheme.iterkeys():
+	for chain in chain_to_colorscheme.keys():
 		for i in range(num_colors):
 
 			lower = binvalues[i]
