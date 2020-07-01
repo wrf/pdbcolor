@@ -14,7 +14,7 @@ More specialized scripts include:
 
 ## General usage on PDB files ##
 ### Making a PyMOL script ###
-There are two practical ways of automatically coloring a structure in PyMOL. One is to process the structure and sequence and generate a script that can be run in PyMOL, which would include the color definitions and selection commands. These commands are exactly the same as those that would be typed into the PyMOL console. For example:
+There are two practical ways of automatically coloring a structure in PyMOL. One is to process the structure and sequence and generate a script that can be run in PyMOL, which would include the color definitions and selection commands. These [commands](https://pymolwiki.org/index.php/Category:Commands) are exactly the same as those that would be [typed into the PyMOL console](https://pymol.org/pymol-command-ref.html). For example:
 
 ```
 show cartoon
@@ -27,7 +27,7 @@ This is the standard option for [pdb_color_generic.py](https://github.com/wrf/pd
 `@/path/to/your/folder/name_of_your_script`
 
 ### Recoding the PDB file ###
-The other strategy will color residues by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
+The other strategy will color residues by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format), and then running a script of the [PyMOL API](https://pymol.org/dokuwiki/doku.php?id=api:cmd:alpha). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
