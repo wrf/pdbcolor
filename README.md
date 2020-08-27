@@ -207,7 +207,7 @@ This protein is called diphosphomevalonate decarboxylase ([MVD1_HUMAN](http://ww
 For PDB files that contain multiple proteins, additional alignments can optionally be listed with `-a`. The corresponding protein ID must be given in the same order with `-s`.
 
 ### detailed instructions for scripts ###
-For details regarding the use of the above scripts involved in [sitewise likelihood calculations](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), see the source code and instructions in the [sitewise_scripts folder](https://github.com/wrf/pdbcolor/tree/master/sitewise_scripts).
+For details regarding the use of the above scripts involved in [sitewise likelihood calculations](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), see the source code and instructions in the [sitewise_scripts folder](https://github.com/wrf/pdbcolor/tree/master/sitewise_scripts), and were used in [Francis 2020](https://doi.org/10.7717/peerj.8865).
 
 ## phylobayes site-wise likelihood ##
 Average site-wise likelihoods can be calculated from [phylobayes](https://github.com/bayesiancook/pbmpi). The procedure of plotting these onto a structure is similar to the above instructions for [RAxML](https://github.com/wrf/pdbcolor#raxml-site-wise-likelihood), with a few differences in program operation and analysis.
@@ -259,12 +259,13 @@ The first colorization script was modified from the `consurf_new.py` script from
 * Mills, DB., Francis, WR. et al (2018) [The last common ancestor of animals lacked the HIF pathway and respired in low-oxygen environments](https://doi.org/10.7554/eLife.31176). *eLife* 7: e31176.
 
 ### Gene structure ###
-* Fallon, TR. et al (2018) [Firefly genomes illuminate parallel origins of bioluminescence in beetles](https://doi.org/10.1101/237586) *bioRxiv*
+* Fallon, TR. et al (2018) [Firefly genomes illuminate parallel origins of bioluminescence in beetles](https://doi.org/10.1101/237586) *eLife* 7:e36495.
 
 ### Phylogenetics ###
 * Voynova, NE. et al (2008) [Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/). *Archives of Biochemistry and Biophysics* 480 (1) 58-67.
 * Shen, X. et al (2017) [Contentious relationships in phylogenomic studies can be driven by a handful of genes](https://www.nature.com/articles/s41559-017-0126). *Nature Ecology & Evolution* 1 1-10.
 * Wild, R. et al (2018) [Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545). *Science* 550: 1-12.
+* Francis, WR., and DE. Canfield (2020) [Very few sites can reshape the inferred phylogenetic tree](https://doi.org/10.7717/peerj.8865). *PeerJ* 8:e8865.
 
 ### Heteropecilly ###
 * Warren, JJ. et al (2007) [Structure of the human MutSalpha DNA lesion recognition complex](https://www.ncbi.nlm.nih.gov/pubmed/?term=17531815). *Molecular Cell* 26 (4) 579-592.
