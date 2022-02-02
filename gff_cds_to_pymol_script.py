@@ -2,7 +2,7 @@
 #
 # gff_cds_to_pymol_script.py v1 2018-06-04
 
-'''gff_cds_to_pymol_script.py  last modified 2019-09-25
+'''gff_cds_to_pymol_script.py  last modified 2022-02-01
     script to generate a PyMOL script to color residues corresponding to exons
     20 colors are currently available, and repeat after 20 exons
 
@@ -84,9 +84,10 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 
 	# read through GFF, pull out all CDS features matching the ID, store length in bases
 	linecounter = 0
-	exoncounter = 0
+	cdscounter = 0
 	exon_lengths = {}
-	sys.stderr.write("# Parsing GFF file {} for {}  ".format( gfffile, gffid ) + time.asctime() + os.linesep)
+	gff_ids_from_file = {} # list of the IDs found in the file, for error checking, key is ID, value is True
+	sys.stderr.write("# Parsing GFF file {} for {}  {}\n".format( gfffile, gffid , time.asctime() ) )
 	for line in open(gfffile,'r'):
 		line = line.strip()
 		if line and line[0]!="#":
@@ -94,21 +95,27 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 			lsplits = line.split("\t")
 			attrstring = lsplits[8]
 			attr_dict = attributes_to_dict(attrstring)
-			if attr_dict.get("ID",False)==gffid or attr_dict.get("Parent",False)==gffid:
+			cds_id = attr_dict.get("ID",False)
+			if cds_id:
+				gff_ids_from_file[cds_id] = True
+			if cds_id==gffid or attr_dict.get("Parent",False)==gffid:
 				feature = lsplits[2]
 				strand = lsplits[6]
+
 				if feature == "CDS":
-					exoncounter += 1
+					cdscounter += 1
 					exonlen = int(lsplits[4]) - int(lsplits[3]) + 1
 					if strand=="+":
-						exon_lengths[exoncounter] = exonlen
+						exon_lengths[cdscounter] = exonlen
 					elif strand=="-": # make numbers negative, so will be sorted backwards
-						exon_lengths[-1*exoncounter] = exonlen
+						exon_lengths[-1*cdscounter] = exonlen
 					else: # for anything else, as everything should have a strand
 						sys.stderr.write("# WARNING UNKNOWN STRAND: {} FOR\n{}\n".format(strand, line) )
-	sys.stderr.write("# Finished parsing {}, read {} lines  ".format(gfffile, linecounter) + time.asctime() + os.linesep)
-	if exoncounter==0:
-		sys.stderr.write("# WARNING COULD NOT FIND ANY EXONS FOR {}\n".format(gffid) )
+	sys.stderr.write("# Finished parsing {}, read {} lines  {}\n".format(gfffile, linecounter, time.asctime() ) )
+	if cdscounter==0: # could not find any CDS features, or ID is wrong
+		sys.stderr.write("# WARNING COULD NOT FIND ANY CDS FEATURES FOR {}\n".format(gffid) )
+		if gff_ids_from_file: # list IDs that were found
+			sys.stderr.write("# FILE CONTAINS ID={}\n".format( " ".join(gff_ids_from_file.keys()) ) )
 
 	# sort CDS features in order, depending on strand, and count amino acids per exon
 	basecounter = 0
@@ -131,8 +138,9 @@ def get_gff_exons(gfffile, gffid, residue_offset=0):
 			residuecounter += 1 # add 1 for the out of phase
 			out_of_phase.append( str(residuecounter) )
 
-	sys.stderr.write("# Found {} exons, {} bases for {} residues\n".format( exoncounter, basecounter, residuecounter ) )
-	sys.stderr.write("# {} codons are out of phase\n".format( len(out_of_phase) ) )
+	if cdscounter:
+		sys.stderr.write("# Found {} CDS exons, {} bases for {} residues\n".format( cdscounter, basecounter, residuecounter ) )
+		sys.stderr.write("# {} codons are out of phase\n".format( len(out_of_phase) ) )
 	return cds_list, out_of_phase
 
 def main(argv, wayout):
