@@ -154,6 +154,18 @@ The `.pml` script is the standard output, and can be run in the PyMOL console us
 
 In the example of [firefly luciferase 5DV9](https://www.rcsb.org/structure/5dv9), the entire protein is divided into two domains, the large AMP-binding domain (blue, green and pink, exons 1-5), and the C-terminal domain (red and orange, exons 6-7). Dark grey residues indicate that the residue is split across two exons (also shown by the grey diamonds on the legend), which is evident from the phase in the GFF file. This also shows that while most exons of the first domain are out of phase, exon 5 ends with a multiple of three bases, then cleanly joins the next domain.
 
+Note that the `grep` step is not strictly necessary. Because the search is specified by the GFF ID, which should be unique in a GFF, the protein can be found still even in a large GFF file.
+
+`grep NID1 ~/genomes/human/GCF_000001405.38_GRCh38.p12_genomic.gff > examples/human_NID1.gff`
+
+`gff_cds_to_pymol_script.py -i cds10864 -g examples/human_NID1.gff > examples/human_NID1.exon_colors.pml`
+
+For instance, pulling directly from the human genome annotation:
+
+`/gff_cds_to_pymol_script.py -i cds10864 -g ~/genomes/human/GCF_000001405.38_GRCh38.p12_genomic.gff > examples/human_NID1.exon_colors.pml`
+
+![human_nidogen1_colored_by_exons.png](https://github.com/wrf/pdbcolor/blob/master/examples/human_nidogen1_colored_by_exons.png)
+
 ## RAxML site-wise likelihood ##
 For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between the top two topologies (out of 3) can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a string of numbers (0-8) where the dlnL refers to the max minus the median and favors whichever topology had the maximum likelihood. Likewise, constants are coded as `x`. This also permits each value to be coded as a single character (for display as a fasta sequence).
 
