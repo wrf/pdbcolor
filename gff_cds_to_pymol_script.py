@@ -23,6 +23,22 @@ gff_cds_to_pymol_script.py -g human_IDH2.gff -i cds82740 -c AB > IDH2_color_5i96
 
 run in PyMOL as (meaning do not use the run command):
 @ppyr_00001_color_5dv9.pml
+
+    scripts can be run on modeled proteins as well, such as this one of nidogen:
+
+gff_cds_to_pymol_script.py -i cds10864 -g human_NID1.gff > human_NID1.exon_colors.pml
+
+    for residue offsets -r
+    for cases where AAs are added to the start of the sequence, use positive values
+    fx 6-His tags with a linker sequence
+    -r 9
+
+    for cases where the PDB structure begins later in the protein, use negative values
+    fx the model below contains only residues 4400-5635 instead of starting at 1
+    -r -4400
+
+gff_cds_to_pymol_script.py -i cds9069 -g human_hmcn1.gff -r -4400 > human_HMCN1-F23.exon_colors.pml
+
 '''
 
 import sys
@@ -134,20 +150,24 @@ def get_gff_exons(gfffile, gffid, residue_offset):
 		basecounter += cdslength
 		firstresidue = residuecounter + 1
 		residuecounter = (basecounter // 3) # add all integer residues
+
 		# make a list of the first and last residues, to become strings
-		residue_strings = map(str, [firstresidue, residuecounter] )
-		# append the 2-item-list to cds_list
-		cds_list.append(residue_strings)
+		# negative residues are not printed
+		if firstresidue > 0 and residuecounter > 0:
+			residue_strings = map(str, [firstresidue, residuecounter] )
+			# append the 2-item-list to cds_list
+			cds_list.append(residue_strings)
 		# if this exon is phase 1 or 2
 		# and does not get back in phase from previous exons
 		if (basecounter % 3):
 			residuecounter += 1 # add 1 for the out of phase
-			out_of_phase.append( str(residuecounter) )
+			if residuecounter > 0:
+				out_of_phase.append( str(residuecounter) )
 
 	if exon_counter:
 		sys.stderr.write("# Counted {} exons for {}\n".format( exon_counter, gffid ) )
 	if cdscounter:
-		sys.stderr.write("# Found {} CDS features, {} bases for {} residues\n".format( cdscounter, basecounter, residuecounter ) )
+		sys.stderr.write("# Using {} out of {} total CDS features, {} bases for {} residues\n".format( len(cds_list), cdscounter, basecounter, residuecounter ) )
 		sys.stderr.write("# {} codons are out of phase\n".format( len(out_of_phase) ) )
 	return cds_list, out_of_phase
 
@@ -158,7 +178,7 @@ def main(argv, wayout):
 	parser.add_argument("-c","--chain", default="A", help="chain used in PDB format file [A]")
 	parser.add_argument("-g","--gff", help="GFF file that contains genes and CDS entries for -s", required=True)
 	parser.add_argument("-i","--id", help="ID of sequence in the GFF file, could match either ID or Parent tag")
-	parser.add_argument("-r","--residue-offset", type=int, default=0, help="number of residues to offset for the start of the structure, for example, if using a structure with 6H tag, etc [default is 0]")
+	parser.add_argument("-r","--residue-offset", type=int, default=0, help="number of residues to offset for the start of the structure, for example, partial structures, a structure with 6H tag, etc [default is 0]")
 	args = parser.parse_args(argv)
 
 	residue_list, outofphase_list = get_gff_exons(args.gff, args.id, args.residue_offset)
