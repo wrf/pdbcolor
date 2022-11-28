@@ -2,7 +2,7 @@
 #
 # color_by_likelihood.py v1 2018-02-01
 
-'''color_by_likelihood.py v1.2 2018-03-05
+'''color_by_likelihood.py v1.2 2022-02-04
 
 in PyMOL, use by:
 
@@ -55,7 +55,7 @@ def color_likelihood(selection="all", whitebg=False):
 		upper = lower + 0.99
 
 		# Print out B-factor limits and the color for this group
-		print lower, " = ", colors[i]
+		print("{} = {}".format( lower, colors[i] ) )
 
 		# Define a unique name for the atoms which fall into this group
 		groupname = groupnames[i] + "_grp" + str(i+1)
@@ -89,9 +89,9 @@ def color_likelihood(selection="all", whitebg=False):
 	cmd.color("insufficient_color", "insufficient")
 
 	if whitebg:
-		print "using color set for white backgrounds"
+		print("using color set for white backgrounds")
 	else:
-		print "to use the color scheme for white backgrounds, type: color_likelihood(whitebg=True)"
+		print("to use the color scheme for white backgrounds, type: color_likelihood(whitebg=True)")
 
 # This is required to make command available in PyMOL 
 cmd.extend("color_likelihood", color_likelihood)
