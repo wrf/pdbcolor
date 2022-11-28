@@ -26,8 +26,10 @@ This is the standard option for [pdb_color_generic.py](https://github.com/wrf/pd
 
 `@/path/to/your/folder/name_of_your_script`
 
+This strategy makes the most sense for cases using standard PDB files, from the databases. That way, another user can use a command like `fetch 5dv9` to get the PDF file and just run the PyMOL script or even the commands alone.
+
 ### Recoding the PDB file ###
-The other strategy will color residues by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format), and then running a script of the [PyMOL API](https://pymol.org/dokuwiki/doku.php?id=api:cmd:alpha). In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
+The other strategy will color residues by changing a value for [each ATOM record in a PDB file](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/primary-sequences-and-the-pdb-format), and then running a script of the [PyMOL API](https://pymol.org/dokuwiki/doku.php?id=api:cmd:alpha). This strategy may make more sense for modeled proteins, that one cannot use `fetch`. In a normal PDB file, the [temperatureFactor or beta-factor](http://pdb101.rcsb.org/learn/guide-to-understanding-pdb-data/dealing-with-coordinates) is the second to last term, here in the first atom it is 0.82.
 
 `ATOM      1  N   ALA A  11       1.483 183.030  20.022  1.00  0.82           N  `
 
@@ -200,9 +202,13 @@ The workflow is meant to begin from a supermatrix, meaning a lot of other data n
 6) Run `pdb_log_likelihood.py` to recode the ATOM records in the PDB file of the protein of interest.
 7) View in PyMOL, and run the `color_by_likelihood.py` script in the PyMOL console.
 
-For example, in the analysis by [Shen et al 2017](https://www.nature.com/articles/s41559-017-0126) using the [Whelan2015-D1-Opisthokont](https://figshare.com/articles/Error_signal_and_the_placement_of_Ctenophora_sister_to_all_other_animals/1334306) set, [STT3B](http://www.uniprot.org/uniprot/Q8TCJ2) was identified as an outlier. STT3B is the catalytic subunit of the oligosaccharyltransferase complex. It contains 22 strong sites, where 20 favor one topology (ctenophora-sister), 1 favors another (porifera-sister), and 1 favors the third. A human crystal structure was unavailable, but was instead [modeled](https://swissmodel.expasy.org/repository/uniprot/Q8TCJ2) after the structure of the complex in yeast: [6EZN](https://www.rcsb.org/structure/6ezn) (see [Wild et al 2018 Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545)). 
+For example, in the analysis by [Shen et al 2017](https://www.nature.com/articles/s41559-017-0126) using the [Whelan2015-D1-Opisthokont](https://figshare.com/articles/Error_signal_and_the_placement_of_Ctenophora_sister_to_all_other_animals/1334306) set, [STT3B](http://www.uniprot.org/uniprot/Q8TCJ2) was identified as an outlier. STT3B is the catalytic subunit of the oligosaccharyltransferase complex. It contains 22 strong sites, where 20 favor one topology (ctenophora-sister), 1 favors another (porifera-sister), and 1 favors the third. A human cryo-EM structure is now available at [6S7T](https://www.rcsb.org/structure/6S7T) (see [Ramirez 2019](http://dx.doi.org/10.1126/science.aaz3505)), but was previously [modeled](https://swissmodel.expasy.org/repository/uniprot/Q8TCJ2) after the structure of the complex in yeast: [6EZN](https://www.rcsb.org/structure/6ezn) (see [Wild 2018](http://science.sciencemag.org/content/359/6375/545)). 
 
 `~/git/pdbcolor/pdb_log_likelihood.py -a examples/26999-27593-STT3B_HUMAN.aln -p STT3B_HUMAN_mod_from_6ezn.pdb -s STT3B_HUMAN > STT3B_HUMAN_mod_from_6ezn_w_lnl.pdb`
+
+The script can also be run on the cyro-EM structure, including other proteins:
+
+`~/git/pdbcolor/pdb_log_likelihood.py -a examples/26999-27593-STT3B_HUMAN.aln examples/367375-367477-DAD1_HUMAN.aln examples/160305-160495-RPN2_HUMAN.aln examples/41614-41862-OST48_HUMAN.aln -p examples/6s7t.pdb -s STT3B_HUMAN DAD1_HUMAN RPN2_HUMAN OST48_HUMAN -w > examples/6s7t.w_lnl.pdb`
 
 ![STT3b_HUMAN_mod_from_6ezn_w_lnl_labels.png](https://github.com/wrf/pdbcolor/blob/master/examples/STT3b_HUMAN_mod_from_6ezn_w_lnl_labels.png)
 
@@ -277,6 +283,7 @@ The first colorization script was modified from the `consurf_new.py` script from
 * Voynova, NE. et al (2008) [Human mevalonate diphosphate decarboxylase: Characterization, investigation of the mevalonate diphosphate binding site, and crystal structure](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2709241/). *Archives of Biochemistry and Biophysics* 480 (1) 58-67.
 * Shen, X. et al (2017) [Contentious relationships in phylogenomic studies can be driven by a handful of genes](https://www.nature.com/articles/s41559-017-0126). *Nature Ecology & Evolution* 1 1-10.
 * Wild, R. et al (2018) [Structure of the yeast oligosaccharyltransferase complex gives insight into eukaryotic N-glycosylation](http://science.sciencemag.org/content/359/6375/545). *Science* 550: 1-12.
+* Ramirez, AS. et al (2019) [Cryo-electron microscopy structures of human oligosaccharyltransferase complexes OST-A and OST-B](http://dx.doi.org/10.1126/science.aaz3505)) *Science* 366: 1372-1375.
 * Francis, WR., and DE. Canfield (2020) [Very few sites can reshape the inferred phylogenetic tree](https://doi.org/10.7717/peerj.8865). *PeerJ* 8:e8865.
 
 ### Heteropecilly ###
