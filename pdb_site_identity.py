@@ -2,7 +2,9 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2019-09-25
+'''pdb_site_identity.py  last modified 2022-11-28
+
+    two usage options: make a PyMol script (-w), or rewrite the PDB file
 
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
@@ -55,7 +57,7 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 			if seqrec.id==target_seqid:
 				targetseq = seqrec.seq
 		if targetseq is None:
-			sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
+			sys.stderr.write("ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 			return None
 
 		index_to_cons = {}
@@ -110,7 +112,7 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 			if seqrec.id==target_seqid:
 				targetseq = seqrec.seq
 		if targetseq is None:
-			sys.stderr.write("# ERROR: CANNOT FIND SEQUENCE {}, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
+			sys.stderr.write("ERROR: CANNOT FIND SEQUENCE {} IN ALIGNMENT, CHECK OPTION -s OR ALIGNMENT\n".format( target_seqid ) )
 			return None
 
 		index_to_identity = {}
@@ -135,7 +137,7 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 		identindex_dict[target_seqid] = index_to_identity
 	return identindex_dict
 
-def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
+def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset, forcerecode):
 	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
 	refoffsets = {} # key is chain, value is integer offset from DB seq
@@ -147,8 +149,8 @@ def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
 			defaultchain = False
 			proteinid = line[42:56].strip()
 			for seqid in seqidlist:
+				chaintarget = line[12]
 				if seqid.find(proteinid)>-1:
-					chaintarget = line[12]
 					chainstart = int(line[14:18].strip())
 					dbstart = int(line[55:60].strip())
 					chainoffset = dbstart - chainstart
@@ -161,6 +163,12 @@ def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset):
 	if defaultchain: # meaning nothing was found, use default and single sequence
 		keepchains[defaultchain] = seqidlist[0]
 		refoffsets[defaultchain] = [1,0]
+	if len(keepchains) < 1:
+		sys.stderr.write("# WARNING: no chains found for {} , check PDB file or force recode\n".format( " ".join(seqidlist) ) )
+		if chaintarget == "A" and forcerecode:
+			sys.stderr.write("# WARNING: forcing recode on chain {} for seq {} \n".format( chaintarget, proteinid ) )
+			keepchains[chaintarget] = seqidlist[0]
+			refoffsets[chaintarget] = [1,0]
 	return keepchains, refoffsets
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset):
@@ -236,9 +244,9 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 	if atomcounter:
 		sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 	else:
-		sys.stderr.write("# NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}\n".format( seqid, proteinid ) )
+		sys.stderr.write("ERROR: NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}\n".format( seqid, proteinid ) )
 
-def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor="red"):
+def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcerecode, basecolor="red"):
 	'''from the identity calculations, print a script for PyMOL'''
 	colors = {} # key is colorscheme name, value is list of colors
 	colors["red"] = [ [0.63,0.63,0.63] , [0.73,0.55,0.55] , [0.75,0.47,0.47], 
@@ -298,7 +306,7 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, basecolor
 				binresidues = ",".join(resilist)
 				cs.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
 				cs.write("color {}{}, {}\n".format( basecolor, int(value), binname ) )
-	sys.stderr.write("# Run as:\n@{}".format( os.path.abspath(colorscript) ) + os.linesep)
+	sys.stderr.write("# Run as:\n@{}\n".format( os.path.abspath(colorscript) ) )
 	# no return
 
 def print_stats(identitydict):
@@ -316,11 +324,11 @@ def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
-	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment", required=True)
+	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment : required", required=True)
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
 	parser.add_argument("-g","--gap-cutoff", metavar="FLOAT from 0.0-1.0", default=0.5, type=float, help="minimum fraction of non-gap characters per site, else is called unconserved [default is 0.5]")
-	parser.add_argument("-p","--pdb", metavar="FILENAME", help="PDB format file", required=True)
-	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
+	parser.add_argument("-p","--pdb", metavar="FILENAME", help="PDB format file : required", required=True)
+	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB, protein seq ID that matches the DBREF field in the PDB file : required", required=True)
 	parser.add_argument("-w","--write-script", metavar="OUTPUT-SCRIPT-NAME", help="write to script instead of recoding PDB file")
 	parser.add_argument("--base-color", default="red", help="color gradient when writing to script, default is red, options are [red,yellow,green,blue]")
 	parser.add_argument("--default-chain", default="A", help="default letter of chain when writing to script [A], if DBREF for the sequence cannot be found in PDB")
@@ -331,7 +339,7 @@ def main(argv, wayout):
 	args = parser.parse_args(argv)
 
 	if len(args.alignment) != len(args.sequence):
-		sys.stderr.write("ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s".format(len(args.alignment), len(args.sequence)) + time.asctime() + os.linesep)
+		sys.stderr.write("ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s  {}\n".format(len(args.alignment), len(args.sequence), time.asctime() ) )
 
 	if len(args.sequence) > len(set(args.sequence)):
 		sys.stderr.write("ERROR: NON UNIQUE NAMES FOR SEQUENCES, CHECK -s\n")
@@ -349,8 +357,8 @@ def main(argv, wayout):
 	# rewrite PDB file or make PyMOL script
 	if conservedict: # indicating that the sequence was found and something was calculated
 		if args.write_script: # write output PyMOL script with color commands
-			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb, args.ignore_offset)
-			make_output_script(conservedict, refchains, refoffsets, args.write_script, args.base_color)
+			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb, args.ignore_offset, args.force_recode)
+			make_output_script(conservedict, refchains, refoffsets, args.write_script, args.force_recode, args.base_color)
 		else: # recode PDB beta-factors
 			rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode, args.ignore_offset)
 	else:
