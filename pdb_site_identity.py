@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2022-11-28
+'''pdb_site_identity.py  last modified 2022-12-22
 
     two usage options: make a PyMol script (-w), or rewrite the PDB file
 
@@ -137,39 +137,53 @@ def get_alignment_identity(alignmentlist, alignformat, targetidlist, gapcutoff):
 		identindex_dict[target_seqid] = index_to_identity
 	return identindex_dict
 
-def get_chains_only(defaultchain, seqidlist, pdbfile, ignoreoffset, forcerecode):
+
+def parse_dbref_line(dbref_line, seqidlist, forcerecode, ignoreoffset):
+	keepchains = {} # dict where key is chain and value is seqid
+	refoffsets = {} # key is chain, value is integer offset from DB seq
+	proteinid = dbref_line[42:56].strip()
+	chaintarget = dbref_line[12]
+	sys.stderr.write("# found DBREF info for seq {} as chain {}\n".format( proteinid , chaintarget ) )
+	for seqid in seqidlist:
+		if seqid.find(proteinid)>-1 or forcerecode:
+			chainstart = int(dbref_line[14:18].strip())
+			dbstart = int(dbref_line[55:60].strip())
+			chainoffset = dbstart - chainstart
+			if forcerecode:
+				sys.stderr.write("### forcing recode on chain {} for seq {} with seq {} \n".format( chaintarget, proteinid, seqidlist[0] ) )
+				keepchains[chaintarget] = seqidlist[0]
+			else:
+				sys.stderr.write("# keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
+				keepchains[chaintarget] = proteinid
+			if ignoreoffset:
+				sys.stderr.write("### forcing offset to 0\n")
+				chainoffset = 0
+			refoffsets[chaintarget] = [chainstart, chainoffset]
+	else: # meaning no seq found
+		pass
+		#sys.stderr.write("### NOTE: no seq in aligment matches seq {}\n".format( proteinid ) )
+	return keepchains, refoffsets
+
+
+def get_chains_only(defaultchain, seqidlist, pdbfile, forcerecode, ignoreoffset):
 	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
 	keepchains = {} # dict where key is chain and value is seqid
 	refoffsets = {} # key is chain, value is integer offset from DB seq
-	sys.stderr.write("# Reading chain from PDB {}".format(pdbfile) + os.linesep)
+	sys.stderr.write("# Reading chain from PDB {}\n".format(pdbfile) )
 	for line in open(pdbfile,'r'):
 		record = line[0:6].strip()
 		# get relevant chains that match the sequence, in case of hetero multimers
 		if record=="DBREF":
-			defaultchain = False
-			proteinid = line[42:56].strip()
-			for seqid in seqidlist:
-				chaintarget = line[12]
-				if seqid.find(proteinid)>-1:
-					chainstart = int(line[14:18].strip())
-					dbstart = int(line[55:60].strip())
-					chainoffset = dbstart - chainstart
-					sys.stderr.write("### keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
-					if ignoreoffset:
-						sys.stderr.write("### forcing offset to 0\n")
-						chainoffset = 0
-					keepchains[chaintarget] = proteinid
-					refoffsets[chaintarget] = [chainstart, chainoffset]
-	if defaultchain: # meaning nothing was found, use default and single sequence
+			defaultchain = False # change to False, indicating that chains were found
+			line_kc_d, line_ro_d = parse_dbref_line(line, seqidlist, forcerecode, ignoreoffset)
+			keepchains.update(line_kc_d)
+			refoffsets.update(line_ro_d)
+	if defaultchain: # meaning nothing for DBREF was found, use default and single sequence
+		sys.stderr.write("# WARNING: NO DBREF TAGS FOUND {} , check PDB file or force recoding with --force-recode \n".format( " ".join(seqidlist) ) )
 		keepchains[defaultchain] = seqidlist[0]
 		refoffsets[defaultchain] = [1,0]
-	if len(keepchains) < 1:
-		sys.stderr.write("# WARNING: no chains found for {} , check PDB file or force recode\n".format( " ".join(seqidlist) ) )
-		if chaintarget == "A" and forcerecode:
-			sys.stderr.write("# WARNING: forcing recode on chain {} for seq {} \n".format( chaintarget, proteinid ) )
-			keepchains[chaintarget] = seqidlist[0]
-			refoffsets[chaintarget] = [1,0]
 	return keepchains, refoffsets
+
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset):
 	sys.stderr.write("# Reading PDB from {}\n".format(pdbfile) )
@@ -183,6 +197,14 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 		# HEADER TITLE COMPND SOURCE AUTHOR REVDAT JRNL REMARK
 		# DBREF SEQRES HET HETNAM FORMUL HELIX SHEET SSBOND LINK CISPEP SITE ATOM CONECT
 
+		record = line[0:6].strip()
+		# get relevant chains that match the sequence, in case of hetero multimers
+		if record=="DBREF":
+			defaultchain = False
+			line_kc_d, line_ro_d = parse_dbref_line(line, seqidlist, forcerecode, ignoreoffset)
+			keepchains.update(line_kc_d)
+			refoffsets.update(line_ro_d)
+		# DBREF lines should come before ATOM lines, so for all other lines, check for ATOM or not
 		#COLUMNS        DATA  TYPE    FIELD        DEFINITION
 		#-------------------------------------------------------------------------------------
 		# 1 -  6        Record name   "ATOM  "
@@ -201,24 +223,6 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 		#77 - 78        LString(2)    element      Element symbol, right-justified.
 		#79 - 80        LString(2)    charge       Charge  on the atom.
 
-		record = line[0:6].strip()
-		# get relevant chains that match the sequence, in case of hetero multimers
-		if record=="DBREF":
-			defaultchain = False
-			proteinid = line[42:56].strip()
-			for seqid in seqidlist:
-				if seqid.find(proteinid)>-1:
-					chaintarget = line[12]
-					chainstart = int(line[14:18].strip())
-					dbstart = int(line[55:60].strip())
-					chainoffset = dbstart - chainstart
-					sys.stderr.write("### keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
-					if ignoreoffset:
-						sys.stderr.write("### forcing offset to 0\n")
-						chainoffset = 0
-					keepchains[chaintarget] = proteinid
-					refoffsets[chaintarget] = [chainstart, chainoffset]
-		# DBREF lines should come before ATOM lines, so for all other lines, check for ATOM or not
 		if record=="ATOM": # skip all other records
 			chain = line[21]
 			residue = int( line[22:26] )
@@ -244,7 +248,8 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 	if atomcounter:
 		sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 	else:
-		sys.stderr.write("ERROR: NO CHAINS FOUND MATCHING SEQ ID {}, CHECK NAME {}\n".format( seqid, proteinid ) )
+		sys.stderr.write("# ERROR: NO CHAINS FOUND MATCHING SEQ ID {}\n".format( seqid ) )
+
 
 def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcerecode, basecolor="red"):
 	'''from the identity calculations, print a script for PyMOL'''
@@ -264,6 +269,10 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcereco
 	insuf_color = [0.75, 0.75, 0.58]
 
 	binvalues = [0.0, 50.0 ,60.0 ,70.0 ,80.0 ,90.0 ,95.0 ,98.0 ,100, 101]
+
+	if len(keepchains) < 1: # meaning no chains kept
+		sys.stderr.write("# ERROR: no chains found, cannot generate script {}\n".format(colorscript) )
+		return None
 
 	sys.stderr.write("# Generating PyMOL script {}\n".format(colorscript) )
 	# begin printing commands for PyMOL script
@@ -307,7 +316,7 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcereco
 				cs.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
 				cs.write("color {}{}, {}\n".format( basecolor, int(value), binname ) )
 	sys.stderr.write("# Run as:\n@{}\n".format( os.path.abspath(colorscript) ) )
-	# no return
+	return colorscript
 
 def print_stats(identitydict):
 	'''based on the identity scores, print a short table indicating overall conservation'''
@@ -357,8 +366,8 @@ def main(argv, wayout):
 	# rewrite PDB file or make PyMOL script
 	if conservedict: # indicating that the sequence was found and something was calculated
 		if args.write_script: # write output PyMOL script with color commands
-			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb, args.ignore_offset, args.force_recode)
-			make_output_script(conservedict, refchains, refoffsets, args.write_script, args.force_recode, args.base_color)
+			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb, args.force_recode, args.ignore_offset)
+			output_script_command = make_output_script(conservedict, refchains, refoffsets, args.write_script, args.force_recode, args.base_color)
 		else: # recode PDB beta-factors
 			rewrite_pdb(args.pdb, args.sequence, conservedict, wayout, args.force_recode, args.ignore_offset)
 	else:
