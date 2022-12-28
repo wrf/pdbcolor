@@ -2,7 +2,7 @@
 #
 # pdb_site_identity.py v1 2017-07-25
 
-'''pdb_site_identity.py  last modified 2022-12-22
+'''pdb_site_identity.py  last modified 2022-12-28
 
     two usage options: make a PyMol script (-w), or rewrite the PDB file
 
@@ -150,14 +150,14 @@ def parse_dbref_line(dbref_line, seqidlist, forcerecode, ignoreoffset):
 			dbstart = int(dbref_line[55:60].strip())
 			chainoffset = dbstart - chainstart
 			if forcerecode:
-				sys.stderr.write("### forcing recode on chain {} for seq {} with seq {} \n".format( chaintarget, proteinid, seqidlist[0] ) )
+				sys.stderr.write("### forcing recode on chain {} for seq {} with seq {}, starting at {} with offset {}\n".format( chaintarget, proteinid, seqidlist[0], chainstart, chainoffset ) )
 				keepchains[chaintarget] = seqidlist[0]
 			else:
 				sys.stderr.write("# keeping chain {} for {}, starting at {} with offset {}\n".format( chaintarget, proteinid, chainstart, chainoffset ) )
 				keepchains[chaintarget] = proteinid
-			if ignoreoffset:
-				sys.stderr.write("### forcing offset to 0\n")
-				chainoffset = 0
+			if ignoreoffset is not None:
+				chainoffset = ignoreoffset
+				sys.stderr.write("### forcing offset to {}\n".format(chainoffset) )
 			refoffsets[chaintarget] = [chainstart, chainoffset]
 	else: # meaning no seq found
 		pass
@@ -228,7 +228,7 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, ignoreoffset
 			residue = int( line[22:26] )
 			chainstart, chainoffset = refoffsets.get(chain, [1,0] )
 			if residue < chainstart:
-				if residue < 1:
+				if residue < 1: # chain includes expression vector, 6-HIS tag or similar
 					sys.stderr.write("# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)\n".format(residue) )
 				continue
 			if defaultchain or forcerecode or chain in keepchains: # default chain means take all, or use chain A
@@ -271,7 +271,7 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcereco
 	binvalues = [0.0, 50.0 ,60.0 ,70.0 ,80.0 ,90.0 ,95.0 ,98.0 ,100, 101]
 
 	if len(keepchains) < 1: # meaning no chains kept
-		sys.stderr.write("# ERROR: no chains found, cannot generate script {}\n".format(colorscript) )
+		sys.stderr.write("# ERROR: no chains found, cannot generate script {} , check PDB or force recode\n".format(colorscript) )
 		return None
 
 	sys.stderr.write("# Generating PyMOL script {}\n".format(colorscript) )
@@ -294,15 +294,18 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcereco
 			# for each residue, assign to a bin
 			for residue in scoredict[keepchains[chain]].keys():
 				if residue < chainstart: # chain begins partway through protein
-					if residue < 1: # chain includes expression vector
+					if residue < 1: # chain includes expression vector, 6-HIS tag or similar
 						sys.stderr.write("# SKIPPING NEGATIVE RESIDUE {} (EXP VECTOR)\n".format(residue) )
 					continue
 				residuescore = scoredict[keepchains[chain]].get(residue,0.00)
-				for i,value in enumerate(binvalues[:-1]):
-					upper = binvalues[i+1]
-					if residuescore < upper:
-						pctgroups[value].append(residue - chainoffset)
-						break
+				# determine which bin the residue belongs in
+				for i,value in enumerate(binvalues[:-1]): # iterate through bins
+					upper_bin_limit = binvalues[i+1] # upper limit would be next bin up
+					if residuescore < upper_bin_limit: # check if residue can be in that bin, otherwise try next bin up
+						adjusted_residue = residue - chainoffset
+						if adjusted_residue > 0: # skip negative residues, meaning offset is big and structure starts after actual gene
+							pctgroups[value].append(adjusted_residue)
+							break # once bin is found, break loop
 				# should not need an else
 			# assign whole chain to lowest color, then build up
 			cs.write("color {}0, chain {}\n".format( basecolor, chain ) )
@@ -311,7 +314,9 @@ def make_output_script(scoredict, keepchains, refoffsets, colorscript, forcereco
 				if i==0: # long lists apparently crash the program, so skip
 					continue
 				binname = "{}pct_grp_{}_{}".format( int(value), i+1, chain )
-				resilist = map(str,pctgroups[value])
+				resilist = list(map(str,pctgroups[value]))
+				if len(resilist)==0: # empty list
+					continue
 				binresidues = ",".join(resilist)
 				cs.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
 				cs.write("color {}{}, {}\n".format( basecolor, int(value), binname ) )
@@ -343,7 +348,7 @@ def main(argv, wayout):
 	parser.add_argument("--default-chain", default="A", help="default letter of chain when writing to script [A], if DBREF for the sequence cannot be found in PDB")
 	parser.add_argument("--ct-conservation", action="store_true", help="calculate sitewise positional conservation (CT model)")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
-	parser.add_argument("--ignore-offset", action="store_true", help="do not read offset from PDB DBREF, use 0")
+	parser.add_argument("--ignore-offset", nargs='?', type=int, const=0, help="do not read offset from PDB DBREF, use 0, or specify integer")
 	parser.add_argument("--stats", action="store_true", help="print basic stats")
 	args = parser.parse_args(argv)
 
