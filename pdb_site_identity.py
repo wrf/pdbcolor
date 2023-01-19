@@ -6,6 +6,10 @@
 
     two usage options: make a PyMol script (-w), or rewrite the PDB file
 
+  proteins or ligands not in the alignment are coded as -1, and colored "null"
+
+  if recoding the PDB file:
+
 pdb_site_identity.py -a mox_all.aln -s DOPO_HUMAN -p 4zel.pdb > 4zel_w_scores.pdb
 
 within a PDB file, fields for atoms are:
@@ -16,15 +20,20 @@ Record name      Residue         Position as X Y Z
 such as:
 ATOM      1  N   PRO A  46       0.739  40.031  44.896  1.00 0.842           N
 
-here, the temperatureFactor will be replaced with the identity %,
-where bins are:
-0, 50, 60, 70, 80, 90, 95, 98, 100%
-
-proteins or ligands not in the alignment are coded as -1, and colored "null"
+    the temperatureFactor will be replaced with the identity %,
+    where bins are:
+  0, 50, 60, 70, 80, 90, 95, 98, 100%
 
 residue number must match the alignment, not the position in the model
 meaning even if the PDB file starts with residue 20, if the first 19 were
 disordered or cleaved, the sequence still must start with residue 1
+
+meaning it is important that the alignment is not trimmed or truncated
+
+this is also important if 6-His tags or similar are in the structure, the
+offset can be changed using the option -I / --ignore-offset
+
+most protein models (like AlphaFold) will start with residue 1
 '''
 
 import sys
@@ -64,7 +73,7 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 		targetcount = 0 # keep track of position in target sequence for all non-gap letters
 
 		base_aa_counts = Counter()
-		sys.stderr.write("# Calculating global amino acid frequencies  " + time.asctime() + os.linesep)
+		sys.stderr.write("# Calculating global amino acid frequencies  {}\n".format( time.asctime() ) )
 		for i in range(al_length): # only iterate over columns that are not gaps in target seq
 			targetletter = targetseq[i]
 			if targetletter != "-": # meaning anything except gaps
@@ -74,7 +83,7 @@ def get_conservation(alignmentlist, alignformat, targetidlist):
 		base_frequencies = dict([ (AA, base_aa_counts[AA]*1.0/total_base_aas) for AA in "ACDEFGHIKLMNPQRSTVWY-"])
 		#sys.stderr.write(base_frequencies)
 
-		sys.stderr.write("# Calculating sitewise conservation  " + time.asctime() + os.linesep)
+		sys.stderr.write("# Calculating sitewise conservation  {}\n".format( time.asctime() ) )
 		for i in range(al_length):
 			targetletter = targetseq[i]
 			if targetletter != "-": # meaning anything except gaps
@@ -347,8 +356,8 @@ def main(argv, wayout):
 	parser.add_argument("--base-color", default="red", help="color gradient when writing to script, default is red, options are [red,yellow,green,blue]")
 	parser.add_argument("--default-chain", default="A", help="default letter of chain when writing to script [A], if DBREF for the sequence cannot be found in PDB")
 	parser.add_argument("--ct-conservation", action="store_true", help="calculate sitewise positional conservation (CT model)")
-	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
-	parser.add_argument("--ignore-offset", nargs='?', type=int, const=0, help="do not read offset from PDB DBREF, use 0, or specify integer")
+	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain, if DBREF is missing or the protein name does not match the alignment")
+	parser.add_argument("-I", "--ignore-offset", nargs='?', type=int, const=0, help="do not read offset from PDB DBREF, use 0, or specify integer")
 	parser.add_argument("--stats", action="store_true", help="print basic stats")
 	args = parser.parse_args(argv)
 

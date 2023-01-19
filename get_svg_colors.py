@@ -1,15 +1,23 @@
 #!/usr/bin/env python
 #
-# get_svg_colors.py
+# get_svg_colors.py 2019-09-25
 
-'''
-  extract all fill colors used in an svg
+'''get_svg_colors.py  last modified 2023-01-19
+
+  this script was mostly intended to extract colors from a figure
+  used to generate a color scheme in PyMOL
+
+  it will extract all fill colors used in an .svg file
+  and print the hex values converted to 0-1 scale for PyMOL coloring
 
 get_svg_colors.py image.svg
 
   output is printed as:
 62698d 0.38 0.41 0.55
   for hex color, then 0.0-1.0 values of R G and B
+
+  used in PyMOL like:
+set_color green98, [0.01,0.87,0.31]
 
 '''
 

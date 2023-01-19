@@ -44,6 +44,8 @@ Running the scripts within PyMOL recolors all atoms, though the color of any of 
 ## generic data ##
 Generic numerical data about each residue can be extracted from a tabular or csv file using the `pdb_color_generic.py` script. Provided that the PDB file only has a single chain (such as from structural simulations), very little information is then needed. The script will extract data from a desired column, generate an appropriate range, and print the PyMOL commands as a script to standard output. Eight color schemes are currently implemented (change with option `-l`), 4 varying from gray to color (for sequential intensity) and 4 are diverging to emphasize very high or low scores, for display on either white or black backgrounds. I normally view proteins on black background, but journals often require white background for figures.
 
+**Note: the varied nature of input data makes it difficult to program a generic scheme, and can cause any number of unanticipated errors. Please open an issue if you encounter problems with your dataset.**
+
 ![generic_color_schemes_v1.png](https://github.com/wrf/pdbcolor/blob/master/svg/generic_color_schemes_v1.png)
 
 For example, here I use the dN/dS data of [histamine receptor H1 3RZE](https://www.rcsb.org/structure/3rze), from the reanalysis by [Sydykova 2018](https://f1000research.com/articles/6-1845/v2). Their csv file contains many parameters, here only four are extracted to match up with the PDB file [provided in their supplemental data](https://github.com/clauswilke/proteinER). These are dNdS (non-synonymous/synonymous substitutions), lrt (dN/dS likelihood ratio test statistic), rsa (relative solvent accessibility), and wcn (weighted contact number for the side chain).
@@ -63,15 +65,25 @@ PyMOL appears to have trouble running commands with very long lists of residues.
 Because scores are always processed from lowest to highest, for cases where all values are negative, the color schemes can be reversed with the flag `-r` (`--reverse-colors`). In this case, `-x` would again omit the bin of values closest to 0, hence the highest values. For diverging datasets and color schemes, the same option removes the middle bin (4, out of 0 to 8) by default. The common bin to omit can be changed with the option `-O` (`--exclusion-override`).
 
 ## percent identity ##
-For a target sequence, recolor by percent identity from a multiple sequence alignment. By default, gray indicates less than 50% identity, following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data). The same sequential color schemes as generic can be used as well: red, yellow, blue, and green.
+With the script `pdb_site_identity.py`, for a target sequence, recolor by percent identity from a multiple sequence alignment. The same sequential color schemes as generic (red, yellow, blue, and green) are used for the script output, gray indicates less than 50% identity. For the output script, red gradient is the default, but this can be changed with the option `--base-color`, such as `--base-color blue`.
+
+#### Options are: ####
+   * `-a` : alignment, required one or more multiple sequence alignments. Several files can be given if trying to recode a multimer/ complex.
+   * `-s` : sequence, the sequence names or FASTA headers for the sequence/s in the alignment that match the structure. Normally this would be the protein seq ID that matches the DBREF field in the PDB file, often a Uniprot ID like `DUOX1_HUMAN`. More than one can be given, corresponding to multiple alignment files.
+   * `-p` : PDB file to read or recode. Currently, `.pdb` format is required, though other options can bypass this.
+   * `-w` : write script, turns on this option and will write the PyMOL script to the specified filename. If combined with `--force-recode` this can often be used to recolor a `.cif` file, such as for very large protein complexes.
+   * `--base-color` : change the base color gradient, to red, yellow, green, blue, such as `--base-color green`. In all cases, the 100% identity group has a much brighter color.
+   * `--force-recode` : if the DBREF field is missing or does not match the sequence from `-s` (say if sequence was renamed, using NCBI accessions, etc), then force the recoding anyway assuming the complete protein in the alignment and PDB file.
+
+### Instructions ###
+If recoding the PDB file, the default colors are following reverse rainbow order (so blue to red) to show increasing identity, with magenta showing 100% identity (excluding gaps or missing data).
 
 ![percent_identity_color_scheme.png](https://github.com/wrf/pdbcolor/blob/master/svg/percent_identity_color_scheme.png)
 
 Colors are defined in the `color_by_identity.py` script, where triplets are RGB values of 0 to 1 (so 1,1,1 is white). Thresholds of identity are defined in the `pdb_site_identity.py` script, where the scores are calculated and printed for each of the ATOM records in the PDB file.
 
-These values range from 0 to 100%, but are grouped into 9 bins. The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
+These values range from 0 to 100%, but are grouped into 9 bins (it is difficult to see the color differences beyond this many). The colors are meant to specifically highlight strongly conserved sites, which is why site identity below 50% is colored gray.
 
-### Instructions ###
 1) Generate a multiple sequence alignment, which must include the sequence of the target PDB structure. For instance, the protein [Symplectin](http://www.uniprot.org/uniprot/C6KYS2) is the target, and residues will be colored based on the percentage of residues in other sequences that are identical to this sequence. Here they are aligned with the program `mafft` using an example [dataset](https://bitbucket.org/wrf/squid-transcriptomes/src) from [Francis et al 2013 Symplectin evolved from multiple duplications in bioluminescent squid](https://peerj.com/articles/3633/).
 
     `mafft-linsi examples/symplectins_w_outgroups.fasta > examples/symplectins_w_outgroups.aln`
@@ -91,19 +103,6 @@ These values range from 0 to 100%, but are grouped into 9 bins. The colors are m
 ![symplectin_domains_by_conservation.png](https://github.com/wrf/pdbcolor/blob/master/examples/symplectin_domains_by_conservation.png)
 
 In the left panel, certain residues in the binding pocket are strongly conserved (shown in red, >95%), such as the catalytic triad of E-K-C (though C is green, meaning only >80% identity, as this is sometimes serine). In the right panel, the other domain is not well conserved outside of disulfide-forming cysteines.
-
-### Conservation ###
-An alternate measure of conservation can also be calculated using the option `--ct-conservation`, based on the equations used in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). There, conservation is calculated as the sitewise frequency of amino acid *a* at position *i* over the global frequency of that amino acid. This is calculated as follows:
-
-```
-conservation = f(i,a) * ln( f(i,a)/q(a) ) + ( 1 - f(i,a) ) * ln ( (1-f(i,a)) / (1-q(a)) )
-f(i,a) is frequency of amino acid 'a' at position 'i'
-q(a) is background frequency of amino acid 'a' in all proteins in the alignment
-```
-
-Thus, when `f(i,a)` is 1, the first term reduces to `ln( 1 / q(a) )` and the second term reduces to zero, meaning the conservation score of a constant site is directly related to its overall frequency in the alignment. In effect, this means that constant sites of common amino acids are penalized, which belies their evolutionary importance over time.
-
-`pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln --ct-conservation > examples/symplectin_swissmodel_01_w_cons.pdb`
 
 ### Instructions for multiple proteins ###
 For cases of heteromultimers, multiple alignments can be used. An alignment *may be given for each protein* in the PDB file, though if a PDB file contains multiple other proteins without alignments, or heteroatoms like metals, ligands, DNA, etc., all of these will be colored the "null" color.
@@ -130,6 +129,19 @@ Instead of directly recoding the PDB file, a PyMOL script can be generated to re
 This script would be run in the PyMOL console using:
 
 `@4zpr_hif_arnt_color_by_id.pml`
+
+### Conservation ###
+The script also allows for an alternate measure of conservation, which can also be calculated using the option `--ct-conservation` based on the equations used in [Halabi, Rivoire et al 2009](http://dx.doi.org/10.1016/j.cell.2009.07.038). There, conservation is calculated as the sitewise frequency of amino acid *a* at position *i* over the global frequency of that amino acid. This is calculated as follows:
+
+```
+conservation = f(i,a) * ln( f(i,a)/q(a) ) + ( 1 - f(i,a) ) * ln ( (1-f(i,a)) / (1-q(a)) )
+f(i,a) is frequency of amino acid 'a' at position 'i'
+q(a) is background frequency of amino acid 'a' in all proteins in the alignment
+```
+
+Thus, when `f(i,a)` is 1, the first term reduces to `ln( 1 / q(a) )` and the second term reduces to zero, meaning the conservation score of a constant site is directly related to its overall frequency in the alignment. In effect, this means that constant sites of common amino acids are penalized, which belies their evolutionary importance over time. To me, this output is less intuitive for this reason than directly visualising the identity, so I never use this option. In any case, it would be run as follows:
+
+`pdb_site_identity.py -p examples/symplectin_swissmodel_01.pdb -s Symplectin -a examples/symplectins_w_outgroups.aln --ct-conservation > examples/symplectin_swissmodel_01_w_cons.pdb`
 
 ## Gene structure ##
 For multidomain proteins, it may be useful to view the protein structure with information from the gene structure, i.e. introns and exons. This may display whether a domain is composed of a single exon and how it may join with other parts of the protein. The script colors residues corresponding to exons, where 20 colors are currently available, and the colors repeat after 20 exons.
