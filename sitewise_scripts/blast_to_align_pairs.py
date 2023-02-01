@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 #
 # blast_to_align_pairs.py
+# pdbcolor version v2018-09-21
+# v1.1 2023-02-01 python3 update
 
-'''blast_to_align_pairs.py  last modified 2018-09-21
+'''blast_to_align_pairs.py  last modified 2023-02-01
 
 blast_to_align_pairs.py -q query_prots.fasta -s prot_db.fasta -b blastp.tab -d pair_dir -r Homo_sapiens.fasta
 
@@ -26,7 +28,7 @@ from Bio.Seq import Seq
 def read_tabular_hp(hptabular):
 	'''read tabular heteropecilly results and return a dict where keys are position and value is HP'''
 	hpdict = {}
-	print >> sys.stderr, "# Reading heteropecilly by site from {}".format(hptabular), time.asctime()
+	print( "# Reading heteropecilly by site from {}  {}".format(hptabular, time.asctime() ), file=sys.stderr )
 	for line in open(hptabular,'r'):
 		line = line.strip()
 		if line and line[0]!="#": # ignore blank and comment lines
@@ -37,14 +39,14 @@ def read_tabular_hp(hptabular):
 			elif hp == "11":
 				hp = "C"
 			hpdict[pos] = hp
-	print >> sys.stderr, "# Found heteropecilly for {} sites".format( len(hpdict) ), time.asctime()
+	print( "# Found heteropecilly for {} sites  {}".format( len(hpdict) , time.asctime() ), file=sys.stderr )
 	return hpdict
 
 def read_tabular_3ln(lntabular, strongsitecutoff):
 	'''read tabular log-likelihood results and return a dict where keys are position and value is three-tree dlnL'''
 	lnldict = {}
 	linecounter = 0
-	print >> sys.stderr, "# Reading log-likelihood by site from {}".format(lntabular), time.asctime()
+	print( "# Reading log-likelihood by site from {}  {}".format(lntabular, time.asctime() ), file=sys.stderr )
 	for line in open(lntabular,'r'):
 		line = line.strip()
 		if line and line[0]!="#": # ignore blank and comment lines
@@ -56,7 +58,7 @@ def read_tabular_3ln(lntabular, strongsitecutoff):
 			if lsplits[1]=="const": # encode constants as x
 				lnldict[pos] = "x"
 			else: # for all other sites, do the calculation
-				lnlfloats = map(float, lsplits[1:])
+				lnlfloats = list(map(float, lsplits[1:]))
 				# top tree for each site before values are sorted
 				toptree = lnlfloats.index(max(lnlfloats))
 				# regardless of how many trees, sort them from max likelihood to least
@@ -78,17 +80,17 @@ def read_tabular_3ln(lntabular, strongsitecutoff):
 				elif adjdlnl <= 0:
 					adjdlnl = 0
 				lnldict[pos] = str(adjdlnl)
-	print >> sys.stderr, "# Found log-likelihood for {} sites".format( len(lnldict) ), time.asctime()
+	print( "# Found log-likelihood for {} sites".format( len(lnldict) , time.asctime() ), file=sys.stderr )
 	return lnldict
 
 def run_mafft(MAFFT, rawseqsfile):
 	'''generate multiple sequence alignment from fasta and return MSA filename'''
 	aln_output = "{}.aln".format(os.path.splitext(rawseqsfile)[0] )
 	aligner_args = [MAFFT, "--auto", "--quiet", rawseqsfile]
-	print >> sys.stderr, "{}\n{}".format(time.asctime(), " ".join(aligner_args) )
+	print( "{}\n{}".format(time.asctime(), " ".join(aligner_args) ), file=sys.stderr )
 	with open(aln_output, 'w') as msa:
 		subprocess.call(aligner_args, stdout=msa)
-	print >> sys.stderr, "# alignment of {} completed".format(aln_output), time.asctime()
+	print( "# alignment of {} completed  {}".format(aln_output, time.asctime() ), file=sys.stderr )
 	if os.path.isfile(aln_output):
 		return aln_output
 	else:
@@ -96,11 +98,11 @@ def run_mafft(MAFFT, rawseqsfile):
 
 def make_heteropecilly_string(aln_file, scoredict, refprotdict):
 	'''from partial alignment to full protein, return string of heteropecilly for partial alignment'''
-	print >> sys.stderr, "# Reading alignment from {}".format( aln_file )
+	print( "# Reading alignment from {}".format( aln_file ), file=sys.stderr )
 	alignment = AlignIO.read( aln_file, "fasta" )
 	al_length = alignment.get_alignment_length()
 	num_taxa = len(alignment)
-	print >> sys.stderr, "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length )
+	print( "# Alignment contains {} taxa for {} sites, including gaps".format( num_taxa, al_length ), file=sys.stderr )
 	rangeindex = [ int(x) for x in os.path.basename(aln_file).split("-")[0:2] ]
 
 	# remove gapped sites from heteropecilly based on aligned and trimmed protein
@@ -130,7 +132,7 @@ def make_pairs_from_blast(blastfile, querydict, subjectdict, new_aln_dir, mafftb
 	'''iterate through blast hits, generate fasta files of each query subject pair and align them'''
 	qspairs = {} # key is query, value is subject, assuming only one hit but multiple HSPs
 	linecounter = 0
-	print >> sys.stderr, "# parsing blast hits from {}".format(blastfile), time.asctime()
+	print( "# parsing blast hits from {}  {}".format(blastfile, time.asctime() ), file=sys.stderr )
 	for line in open(blastfile,'r'):
 		line = line.strip()
 		if line and line[0]!="#": # skip empty and comment lines
@@ -139,9 +141,9 @@ def make_pairs_from_blast(blastfile, querydict, subjectdict, new_aln_dir, mafftb
 			query = lsplits[0]
 			subject = lsplits[1]
 			qspairs[query] = subject
-	print >> sys.stderr, "# counted {} blast hits for {} query proteins".format( linecounter, len(qspairs) ), time.asctime()
+	print( "# counted {} blast hits for {} query proteins  {}".format( linecounter, len(qspairs) , time.asctime() ), file=sys.stderr )
 	filecounter = 0
-	for q,s in qspairs.iteritems():
+	for q,s in qspairs.items():
 		fasta_filename = "{}-{}.fasta".format(q.split("_")[-1],s.split("|")[-1])
 		fasta_output = os.path.join(new_aln_dir,fasta_filename)
 		with open(fasta_output,'w') as fo:
@@ -155,8 +157,8 @@ def make_pairs_from_blast(blastfile, querydict, subjectdict, new_aln_dir, mafftb
 			if refdict and scoredict: # if alignment proteins and heteropecilly are given
 				hpstring = make_heteropecilly_string(aln_file, scoredict, refdict)
 				with open(aln_file, 'a') as af:
-					print >> af, ">{}\n{}".format( fastascorestring, hpstring )
-	print >> sys.stderr, "# generated {} alignments".format(filecounter), time.asctime()
+					print( ">{}\n{}".format( fastascorestring, hpstring ), file=af )
+	print( "# generated {} alignments  {}".format(filecounter, time.asctime() ), file=sys.stderr )
 
 def main(argv, wayout):
 	if not len(argv):
@@ -177,20 +179,20 @@ def main(argv, wayout):
 	new_aln_dir = os.path.abspath("{}_{}".format(args.directory, time.strftime("%Y%m%d-%H%M%S") ) )
 	if not os.path.exists(new_aln_dir):
 		os.mkdir(new_aln_dir)
-		print >> sys.stderr, "# Creating directory {}".format(new_aln_dir), time.asctime()
+		print( "# Creating directory {}  {}".format(new_aln_dir, time.asctime() ), file=sys.stderr )
 	elif os.path.isdir(new_aln_dir):
-		print >> sys.stderr, "# Using directory {}".format(new_aln_dir), time.asctime()
+		print( "# Using directory {}  {}".format(new_aln_dir, time.asctime() ), file=sys.stderr )
 
-	print >> sys.stderr, "# Reading sequences from {}".format(args.query), time.asctime()
+	print( "# Reading sequences from {}  {}".format(args.query, time.asctime() ), file=sys.stderr )
 	querydict = SeqIO.to_dict(SeqIO.parse(args.query,"fasta"))
-	print >> sys.stderr, "# Counted {} sequences".format( len(querydict) ), time.asctime()
-	print >> sys.stderr, "# Reading sequences from {}".format(args.subject), time.asctime()
+	print( "# Counted {} sequences  {}".format( len(querydict) , time.asctime() ), file=sys.stderr )
+	print( "# Reading sequences from {}  {}".format(args.subject, time.asctime() ), file=sys.stderr )
 	subjectdict = SeqIO.to_dict(SeqIO.parse(args.subject,"fasta"))
-	print >> sys.stderr, "# Counted {} sequences".format( len(subjectdict) ), time.asctime()
+	print( "# Counted {} sequences  {}".format( len(subjectdict) , time.asctime() ), file=sys.stderr )
 	if args.reference:
-		print >> sys.stderr, "# Reading sequences from {}".format(args.reference), time.asctime()
+		print( "# Reading sequences from {}  {}".format(args.reference, time.asctime() ), file=sys.stderr )
 		refdict = SeqIO.to_dict(SeqIO.parse(args.reference,"fasta"))
-		print >> sys.stderr, "# Counted {} sequences".format( len(refdict) ), time.asctime()
+		print( "# Counted {} sequences  {}".format( len(refdict) , time.asctime() ), file=sys.stderr )
 	else:
 		refdict = None
 
