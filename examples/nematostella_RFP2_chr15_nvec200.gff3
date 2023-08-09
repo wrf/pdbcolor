@@ -1,0 +1,16 @@
+##gff-version 3
+##sequence-region chr15 784182 824675
+chr15	nv_dovetail_4_gapped_chroms.final	gene	803864	808113	.	+	.	ID=NVE22158.path1;Name=NVE22158;Note=RFP_ENTQU;_Trinotate_name=RFP_ENTQU
+chr15	nv_dovetail_4_gapped_chroms.final	mRNA	803864	808113	.	+	.	_Coverage=100.0;ID=NVE22158.mrna1;_Identity=100.0;_Indels=0;_Matches=1221;_Mismatches=0;Name=NVE22158;Note=RFP_ENTQU;_Trinotate_name=RFP_ENTQU;_Unknowns=0;Parent=NVE22158.path1
+chr15	.	five_prime_UTR	803864	804044	.	+	.	Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	exon	803864	804047	100	+	.	ID=NVE22158.mrna1.exon1;Name=NVE22158;Target=NVE22158 1 184 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	exon	804480	804580	100	+	.	ID=NVE22158.mrna1.exon2;Name=NVE22158;Target=NVE22158 185 285 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	exon	804919	805140	100	+	.	ID=NVE22158.mrna1.exon3;Name=NVE22158;Target=NVE22158 286 507 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	exon	805286	805495	100	+	.	ID=NVE22158.mrna1.exon4;Name=NVE22158;Target=NVE22158 508 717 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	exon	807610	808113	100	+	.	ID=NVE22158.mrna1.exon5;Name=NVE22158;Target=NVE22158 718 1221 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	CDS	804045	804047	100	+	0	ID=NVE22158.mrna1.cds1;Name=NVE22158;Target=NVE22158 182 184 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	CDS	804480	804580	100	+	0	ID=NVE22158.mrna1.cds2;Name=NVE22158;Target=NVE22158 185 285 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	CDS	804919	805140	100	+	2	ID=NVE22158.mrna1.cds3;Name=NVE22158;Target=NVE22158 286 507 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	CDS	805286	805495	100	+	2	ID=NVE22158.mrna1.cds4;Name=NVE22158;Target=NVE22158 508 717 +;Parent=NVE22158.mrna1
+chr15	nv_dovetail_4_gapped_chroms.final	CDS	807610	807787	100	+	2	ID=NVE22158.mrna1.cds5;Name=NVE22158;Target=NVE22158 718 895 +;Parent=NVE22158.mrna1
+chr15	.	three_prime_UTR	807788	808113	.	+	.	Parent=NVE22158.mrna1
