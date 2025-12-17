@@ -180,6 +180,10 @@ For instance, pulling directly from the human genome annotation:
 
 ![human_nidogen1_colored_by_exons.png](https://github.com/wrf/pdbcolor/blob/master/examples/human_nidogen1_colored_by_exons.png)
 
+Similarly, for [human aconitase](https://www.uniprot.org/uniprotkb/Q99798/entry) from [Alphafold](https://alphafold.com/entry/AF-Q99798-F1)
+
+![ACON_HUMAN_exon_color.png](https://github.com/wrf/pdbcolor/blob/master/examples/ACON_HUMAN_exon_color.png)
+
 ## RAxML site-wise likelihood ##
 For an alignment and a series of phylogenetic trees with fixed topologies, [RAxML](https://sco.h-its.org/exelixis/web/software/raxml/index.html) can produce a table of site-wise log-likelihoods for each tree topology (using the `-f G` option). The difference between the top two topologies (out of 3) can be computed for each site (the "dlnL"), showing which sites contribute strongly to one topology or the other. These dlnL values are recoded to a string of numbers (0-8) where the dlnL refers to the max minus the median and favors whichever topology had the maximum likelihood. Likewise, constants are coded as `x`. This also permits each value to be coded as a single character (for display as a fasta sequence).
 
