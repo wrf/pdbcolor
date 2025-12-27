@@ -3,8 +3,20 @@
 # blast_to_align_pairs.py
 # pdbcolor version v2018-09-21
 # v1.1 2023-02-01 python3 update
+# v1.2 2025-12-27 indicate likelihood3 for 3-tree calculations
 
-'''blast_to_align_pairs.py  last modified 2023-02-01
+'''blast_to_align_pairs.py  last modified 2025-12-27
+    this is the script that generates the many alignments of each protein
+    where one line is the alignment from the supermatrix,
+    one line is the original protein (untrimmed),
+    and one line is the log-likelihood or heteropecilly matched with the aligned portion
+
+>Homo_sapiens_14885-15764
+-GFLKLIEIENFKSYKGRQIIGPFQ-FTAIIGPNGSGKSNLMDAISFVLGEKTSNLRVK-
+>sp|Q14683|SMC1A_HUMAN Structural maintenance of chromosomes protein 1A OS=Homo sapiens GN=SMC1A PE=1 SV=2
+MGFLKLIEIENFKSYKGRQIIGPFQRFTAIIGPNGSGKSNLMDAISFVLGEKTSNLRVKT
+>Likelihood3_score
+-66x00000000x0x006060xx06-x3030x0xx0xxxx00x000x000636660x66-
 
 blast_to_align_pairs.py -q query_prots.fasta -s prot_db.fasta -b blastp.tab -d pair_dir -r Homo_sapiens.fasta
 
@@ -51,9 +63,11 @@ def read_tabular_3ln(lntabular, strongsitecutoff):
 		line = line.strip()
 		if line and line[0]!="#": # ignore blank and comment lines
 			linecounter += 1
-			if linecounter < 2:
-				continue
 			lsplits = line.split('\t')
+			if linecounter < 2:
+				if len(lsplits) < 4:
+					print( "# WARNING: file has {} columns, not 4".format( len(lsplits) ), file=sys.stderr )
+				continue
 			pos = int(lsplits[0])
 			if lsplits[1]=="const": # encode constants as x
 				lnldict[pos] = "x"
@@ -74,12 +88,13 @@ def read_tabular_3ln(lntabular, strongsitecutoff):
 						adjdlnl = 1
 					else: # very strong sites
 						adjdlnl = 2
-				adjdlnl = adjdlnl + (3 * toptree)
+				adjdlnl = adjdlnl + (3 * toptree) # assumes 3 trees, though would work with 2
 				if adjdlnl >= 9:
 					adjdlnl = 9
 				elif adjdlnl <= 0:
 					adjdlnl = 0
 				lnldict[pos] = str(adjdlnl)
+
 	print( "# Found log-likelihood for {} sites".format( len(lnldict) , time.asctime() ), file=sys.stderr )
 	return lnldict
 
@@ -96,8 +111,8 @@ def run_mafft(MAFFT, rawseqsfile):
 	else:
 		raise OSError("Cannot find expected output file {}".format(aln_output) )
 
-def make_heteropecilly_string(aln_file, scoredict, refprotdict):
-	'''from partial alignment to full protein, return string of heteropecilly for partial alignment'''
+def make_aligned_score_string(aln_file, scoredict, refprotdict):
+	'''from partial alignment to full protein, return string of sitewise-lnl or heteropecilly for partial alignment'''
 	print( "# Reading alignment from {}".format( aln_file ), file=sys.stderr )
 	alignment = AlignIO.read( aln_file, "fasta" )
 	al_length = alignment.get_alignment_length()
@@ -117,16 +132,16 @@ def make_heteropecilly_string(aln_file, scoredict, refprotdict):
 		#	hpoffset += 1
 
 	# assign heteropecilly score to columns without gaps in alignment
-	aligned_hpstring = ""
+	aligned_scorestring = ""
 	refoffset = 0
 	for i in range(al_length):
 		alignment_column = alignment[:,i] # all letters per site
 		if alignment_column[0]=="-": # if first character is a gap, assign gap for heteropecilly
-			aligned_hpstring += "-"
+			aligned_scorestring += "-"
 		else: # otherwise use value from score_no_gaps
-			aligned_hpstring += score_no_gaps[refoffset]
+			aligned_scorestring += score_no_gaps[refoffset]
 			refoffset += 1
-	return aligned_hpstring
+	return aligned_scorestring
 
 def make_pairs_from_blast(blastfile, querydict, subjectdict, new_aln_dir, mafftbin, scoredict, refdict, fastascorestring ):
 	'''iterate through blast hits, generate fasta files of each query subject pair and align them'''
@@ -155,7 +170,7 @@ def make_pairs_from_blast(blastfile, querydict, subjectdict, new_aln_dir, mafftb
 		if aln_file: # check if file was made
 			filecounter += 1
 			if refdict and scoredict: # if alignment proteins and heteropecilly are given
-				hpstring = make_heteropecilly_string(aln_file, scoredict, refdict)
+				hpstring = make_aligned_score_string(aln_file, scoredict, refdict)
 				with open(aln_file, 'a') as af:
 					print( ">{}\n{}".format( fastascorestring, hpstring ), file=af )
 	print( "# generated {} alignments  {}".format(filecounter, time.asctime() ), file=sys.stderr )
@@ -171,7 +186,7 @@ def main(argv, wayout):
 	parser.add_argument('-s','--subject', help="fasta file of blast database proteins; this was the -db file for blastp")
 	parser.add_argument('-r','--reference', help="fasta file of proteins from the alignment with gaps, only needed if log-likelihood or heteropecilly is computed")
 	parser.add_argument('-t','--strong', type=float, default=0.5, help="cutoff threshold for strong sites in RAxML or phylobayes [0.5]")
-	parser.add_argument('-l','--log-likelihood', help="tabular log-likelihood data file from RAxML")
+	parser.add_argument('-l','--log-likelihood', help="tabular three-tree log-likelihood data file from RAxML")
 	parser.add_argument('-p','--heteropecilly', help="tabular heteropecilly data file")
 	args = parser.parse_args(argv)
 
@@ -203,7 +218,7 @@ def main(argv, wayout):
 		fastascorestring = "Heteropecilly_score"
 	elif args.log_likelihood:
 		valsbysite = read_tabular_3ln(args.log_likelihood, args.strong)
-		fastascorestring = "Likelihood_score"
+		fastascorestring = "Likelihood3_score"
 
 	make_pairs_from_blast(args.blast, querydict, subjectdict, new_aln_dir, args.mafft, valsbysite, refdict, fastascorestring)
 
