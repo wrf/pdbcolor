@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 #
 # pdb_log_likelihood.py v1 2018-02-01
+# v1.1 2019-09-25
+# v1.2 2025-12-27 generate PyMOL script
 
 '''pdb_log_likelihood.py  last modified 2019-09-25
 
@@ -35,7 +37,7 @@ import argparse
 from collections import Counter,defaultdict
 from Bio import AlignIO
 
-def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
+def get_alignment_values(alignmentlist, alignformat, targetidlist, print_verbose):
 	scoreindex_dict = {} # dict of dicts, where key is seqID, value is dict where key is position
 	score_counter = defaultdict(int)
 	for alignment,target_seqid in zip(alignmentlist,targetidlist):
@@ -58,7 +60,7 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 				shortid = None
 			if seqrec.id==target_seqid or shortid==target_seqid:
 				targetseq = seqrec.seq
-			elif seqrec.id=="Likelihood_score" or seqrec.id=="Heteropecilly_score":
+			elif seqrec.id in ["Likelihood_score", "Likelihood3_score", "Heteropecilly_score"]:
 				sitescores = seqrec.seq
 				scoretype = seqrec.id
 		if targetseq is None:
@@ -71,7 +73,7 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 		index_to_score = {}
 		nongapcount = 0
 		targetcount = 0 # keep track of position in target sequence for all non-gap letters
-		if scoretype=="Likelihood_score":
+		if scoretype=="Likelihood_score" or scoretype=="Likelihood3_score":
 			for i in range(al_length):
 				targetletter = targetseq[i]
 				lnlvalue = sitescores[i]
@@ -111,11 +113,108 @@ def get_alignment_values(alignmentlist, alignformat, targetidlist, printw):
 					score_counter[rankedscore] += 1
 			sys.stderr.write("# Found heteropecilly for {} sites for {}\n".format( nongapcount, target_seqid ) )
 			scoreindex_dict[target_seqid] = index_to_score
-	if printw:
+	if print_verbose:
 		sys.stderr.write("# SCORES ARE: T1:{}, T2:{}, T3:{}\n".format(score_counter[1] + score_counter[2], score_counter[4] + score_counter[5], score_counter[7] + score_counter[8]) )
 		for k,v in score_counter.items():
 			sys.stderr.write("#{}\t{}\n".format(k,v) )
 	return scoreindex_dict
+
+##############################
+
+def get_chains_only(defaultchain, seqidlist, pdbfile):
+	'''read PDB file and return two dicts, one where key is chain and value is sequence ID, other where key is the chain and value is integer of the DBREF offset'''
+	keepchains = {} # dict where key is chain and value is seqid, though value is not used
+	refoffsets = {} # key is chain, value is integer offset from DB seq
+	sys.stderr.write("# Reading chain from PDB {}\n".format(pdbfile) )
+	for line in open(pdbfile,'r'):
+		record = line[0:6].strip()
+		# get relevant chains that match the sequence, in case of hetero multimers
+		if record=="DBREF":
+			defaultchain = False
+			proteinid = line[42:56].strip()
+			for seqid in seqidlist:
+				if seqid.find(proteinid)>-1:
+					chaintarget = line[12]
+					chainstart = int(line[14:18].strip())
+					dbstart = int(line[55:60].strip())
+					chainoffset = dbstart - chainstart
+					sys.stderr.write("### keeping chain {} for sequence {} with offset {}\n".format( chaintarget, proteinid, chainoffset ) )
+					keepchains[chaintarget] = proteinid
+					refoffsets[chaintarget] = chainoffset
+	if defaultchain: # meaning nothing was found, use default and single sequence
+		if seqidlist: # all default chains are assumed to use only the first sequence
+			keepchains[defaultchain] = seqidlist[0]
+		else: # value is not called, but just to indicate that -s is or used or not
+			keepchains[defaultchain] = "UNKNOWN"
+		refoffsets[defaultchain] = 0
+		sys.stderr.write("### using default chain {}\n".format( defaultchain ) )
+	return keepchains, refoffsets
+
+##############################
+
+def make_output_script(keepchains, refoffsets, scoredict, whitebg, wayout):
+	'''from the lnl information, print a script for PyMOL'''
+
+	# each color is RGB triplet, values ranging from 0 to 1, where black is 0 and white is 1
+	# colors should be:
+	# for values [ -1 gray
+	#            0 clay   1 pink   2 red
+	#            3 mud    4 teal   5 green
+	#            6 lead   7 cobalt 8 blue
+	#            9 orange ]
+
+	colors = [ [0.39, 0.39, 0.39] ,
+             [0.49,0.36,0.40] , [0.76,0.26,0.56] , [0.77,0.20,0.33] ,
+             [0.42,0.49,0.42] , [0.26,0.77,0.64] , [0.19,0.74,0.34] ,
+             [0.39,0.37,0.55] , [0.35,0.26,0.76] , [0.24,0.45,0.87] ,
+             [1.00,0.60,0.12] ]
+
+	if whitebg: # replaces colors -1, 0, 3, 6, 9
+		colors = [ [0.99,0.87,0.37] ,
+             [0.83,0.74,0.76] , [0.76,0.26,0.56] , [0.77,0.20,0.33] ,
+             [0.73,0.82,0.73] , [0.26,0.77,0.64] , [0.19,0.74,0.34] ,
+             [0.74,0.73,0.86] , [0.35,0.26,0.76] , [0.24,0.45,0.87] ,
+             [0.84,0.46,0.00] ]
+
+	groupnames = [ "gaps", 
+                  "t1-weak", "t1-strong", "t1-max",
+                  "t2-weak", "t2-strong", "t2-max",
+                  "t3-weak", "t3-strong", "t3-max",
+                   "const" ]
+	group_values = [-1,  0,1,2,  3,4,5,  6,7,8,  9] # encoded earlier
+
+	# begin printing commands for PyMOL script
+	wayout.write("hide everything\n")
+	if whitebg:
+		wayout.write("bg white\n")
+	else:
+		wayout.write("bg black\n")
+	chainstring = " or ".join( ["chain {}".format(chain) for chain in keepchains.keys()] )
+	wayout.write("show cartoon, ({})\n".format(chainstring) )
+
+	for i,rgb in enumerate(colors):
+		colorname = "{}-col".format( groupnames[i] )
+		wayout.write("set_color {}, [{}]\n".format( colorname, ",".join(map(str,rgb)) ) )
+
+	# make commands for each chain
+	for chain,seqid in keepchains.items(): # keys are chain letters, values are seq IDs
+		chainoffset = refoffsets.get(chain, 0)
+		scoregroups = defaultdict(list) # key is group_values group, value is list of residues
+		# for each residue, assign to a bin
+		for residue in scoredict[seqid].keys():
+			residuescore = scoredict[seqid].get(residue,None)
+			scoregroups[residuescore].append(residue - chainoffset)
+		# for each bin, make a command to color all residues of that bin
+		for i,value in enumerate(group_values):
+			binname = "{}_{}".format( groupnames[i], chain )
+			resilist = list(map(str,scoregroups.get(value,[])))
+			if resilist: # do not print empty groups
+				binresidues = ",".join(resilist)
+				wayout.write("select {}, (chain {} & resi {})\n".format( binname, chain, binresidues ) )
+				wayout.write("color {}-col, {}\n".format( groupnames[i], groupnames[i], binname ) )
+	# no return
+
+##############################
 
 def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, heterocolors):
 	sys.stderr.write("# Reading PDB from {}\n".format(pdbfile) )
@@ -220,26 +319,37 @@ def rewrite_pdb(pdbfile, seqidlist, scoredict, wayout, forcerecode, colorgaps, h
 			wayout.write( line )
 	sys.stderr.write("# Recoded values for {} atoms in {} residues\n".format(atomcounter, len(residuecounter) ) )
 
+##############################
+
 def main(argv, wayout):
 	if not len(argv):
 		argv.append('-h')
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
 	parser.add_argument("-a","--alignment", nargs="*", help="multiple sequence alignment", required=True)
 	parser.add_argument("-f","--format", default="fasta", help="alignment format [fasta]")
-	parser.add_argument("-p","--pdb", help="PDB format file", required=True)
-	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True)
-	parser.add_argument("-w","--w", action="store_true", help="extra output")
+	parser.add_argument("-p","--pdb", help="PDB format file, if none given, then print PyMOL script as output", required=True )
+	parser.add_argument("-s","--sequence", nargs="*", help="sequence ID for PDB", required=True )
+	parser.add_argument("-w","--write-script", action="store_true", help="write to script instead of recoding PDB file")
+	parser.add_argument("-v","--verbose", action="store_true", help="extra output")
+	parser.add_argument("--white-bg", action="store_true", help="change colors for white background, i.e. for paper")
+	parser.add_argument("--default-chain", default="A", help="default letter of chain when writing to script [A], if DBREF for the sequence cannot be found in PDB")
+
 	parser.add_argument("--color-gaps", action="store_true", help="use dark colors to uniquely color gaps of up to 6 chains")
 	parser.add_argument("--force-recode", action="store_true", help="force recoding regardless of chain")
-	parser.add_argument("--heteroatoms", action="store_true", help="color heteroatoms")
+	parser.add_argument("--heteroatoms", action="store_true", help="color heteroatoms, in recoding mode")
 	args = parser.parse_args(argv)
 
 	if len(args.alignment) != len(args.sequence):
 		sys.stderr.write("ERROR: {} ALIGNMENTS FOR {} SEQUENCES, MUST BE EQUAL, CHECK -a AND -s\n".format(len(args.alignment), len(args.sequence)) )
 
-	scoredict = get_alignment_values( args.alignment, args.format, args.sequence, args.w)
+	scoredict = get_alignment_values( args.alignment, args.format, args.sequence, args.verbose )
 	if scoredict: # indicating that the sequence was found and something was calculated
-		rewrite_pdb(args.pdb, args.sequence, scoredict, wayout, args.force_recode, args.color_gaps, args.heteroatoms)
+		if args.write_script: # write script to stdout
+			refchains, refoffsets = get_chains_only(args.default_chain, args.sequence, args.pdb)
+			make_output_script(refchains, refoffsets, scoredict, args.white_bg, wayout)
+		else: # assume that user wants to recode the PDB file
+			rewrite_pdb(args.pdb, args.sequence, scoredict, wayout, args.force_recode, args.color_gaps, args.heteroatoms)
+
 	else:
 		sys.exit("# CANNOT CALCULATE LIKELIHOODS, EXITING")
 
