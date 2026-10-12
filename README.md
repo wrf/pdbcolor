@@ -1,5 +1,9 @@
+For an interactive viewer making use of this code with more functionality, see [CladeScope](https://wrf.github.io/cladescope/). (last modified 10-2026)
+
+---
+
 # pdbcolor
-Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed. Currently, these scripts only support `.pdb` format, and **NOT** `.cif` format. I will probably implement this in the future.
+Python code for [PyMOL](https://pymol.org/2/) to color a [PDB structure](http://www.rcsb.org/) based on various parameters obtained from a multiple sequence alignment. The scripts could be modified to accept essentially any parameter that can be obtained for each residue, say for dN/dS ratios, hydrophobicity, etc. and could be changed to represent any arbitrary value series for however many colors are needed. Currently, these scripts only support `.pdb` format, and **NOT** `.cif` format.
 
 Existing schemes include:
 * [generic data](https://github.com/wrf/pdbcolor#generic-data) for each residue read from a tabular file or csv
